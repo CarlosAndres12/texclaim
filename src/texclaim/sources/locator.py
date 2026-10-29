@@ -41,6 +41,26 @@ class IdentityValidator:
         return Validation(res.ok, "" if res.ok else "SOURCE_IDENTITY_MISMATCH", res.detail)
 
 
+class ExtractingValidator:
+    """Extracts (once, via the global text cache), then rejects scanned PDFs and wrong works."""
+
+    def __init__(self, cache: GlobalCache, extractor=None) -> None:
+        self.cache, self.extractor = cache, extractor
+
+    def check(self, data: bytes, entry: BibEntry) -> Validation:
+        from texclaim.sources.extractor import extract_cached
+
+        try:
+            _, doc = extract_cached(data, self.cache, self.extractor)
+        except Exception as e:  # noqa: BLE001 - corrupt or encrypted PDF
+            return Validation(False, "EXTRACTION_FAILED", type(e).__name__)
+        if doc.scanned:
+            return Validation(False, "SCANNED_PDF", "no text layer; OCR is not supported")
+        head = "\n".join(p.text for p in doc.pages[:2])
+        res = check_identity(head, entry.title, entry.first_surname)
+        return Validation(res.ok, "" if res.ok else "SOURCE_IDENTITY_MISMATCH", res.detail)
+
+
 @dataclass
 class SourceResult:
     key: str
@@ -52,6 +72,8 @@ class SourceResult:
     work: OpenAlexWork | None = None
     trail: list[dict] = field(default_factory=list)
     failures: list[dict] = field(default_factory=list)  # {"code", "provider", "sha256", "detail"}
+    text_sha256: str | None = None  # fingerprint of the text the verifier will see
+    language: str | None = None
 
 
 class Locator:

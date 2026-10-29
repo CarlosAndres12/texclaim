@@ -105,8 +105,8 @@ def insert_catalog(
                 e and e.doi, e and e.arxiv_id, e and e.pmid,
                 w and w.openalex_id, w and w.title, w and w.year,
                 int(w.is_retracted) if w else None,
-                r.status, r.provider, r.version, r.blob_sha256, None, None,
-                w and w.language,
+                r.status, r.provider, r.version, r.blob_sha256, None, r.text_sha256,
+                r.language or (w and w.language),
                 json.dumps({"trail": r.trail, "failures": r.failures}), now,
             ),
         )  # fmt: skip

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from texclaim import paths
 from texclaim.config import Settings, resolve_secret
+from texclaim.db.source_store import gc_sources
 from texclaim.db.state_store import open_db
 from texclaim.parser import ParseResult, parse_manuscript
 from texclaim.parser.bib_parser import BibDatabase, parse_bib_files
@@ -15,7 +16,8 @@ from texclaim.snapshot import write_snapshot
 from texclaim.sources.budget import RunBudget
 from texclaim.sources.catalog import resolve_sources
 from texclaim.sources.global_cache import GlobalCache
-from texclaim.sources.locator import SourceResult
+from texclaim.sources.indexing import index_sources
+from texclaim.sources.locator import ExtractingValidator, SourceResult
 
 
 @dataclass
@@ -32,6 +34,7 @@ def prepare(
     *,
     cache_dir: Path | None = None,
     openalex_key: str | None = None,
+    extractor=None,
 ) -> Prepared:
     folder = folder.resolve()
     parsed = parse_manuscript(folder, settings.main, settings.extra_cite_commands)
@@ -39,14 +42,19 @@ def prepare(
     cache = GlobalCache(paths.global_cache_dir(cache_dir))
     try:
         key = openalex_key or resolve_secret("openalex_api_key")
+        validator = ExtractingValidator(cache, extractor)
         results, budget = asyncio.run(
-            resolve_sources(folder, parsed, bibdb, settings, cache, openalex_key=key)
+            resolve_sources(
+                folder, parsed, bibdb, settings, cache, openalex_key=key, validator=validator
+            )
         )
+        conn = open_db(folder)
+        try:
+            index_sources(conn, results, cache, extractor)
+            write_snapshot(conn, parsed, bibdb, results)
+            gc_sources(conn)
+        finally:
+            conn.close()
     finally:
         cache.close()
-    conn = open_db(folder)
-    try:
-        write_snapshot(conn, parsed, bibdb, results)
-    finally:
-        conn.close()
     return Prepared(parsed, bibdb, results, budget)

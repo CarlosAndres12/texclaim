@@ -20,3 +20,7 @@
 | 2026-10-28 | Snapshot writer | `snapshot.write_snapshot` replaces source_files, claims, citations and references_catalog in one transaction; citations.unit_key stays '' until Phase 6 | §9 |
 | 2026-10-28 | Inactive OpenAlex key | On `403 key_not_activated` the client retries once without the key and continues keyless | §5 |
 | 2026-10-28 | Validator hook | `Locator` takes a `SourceValidator`; Phase 4 adds scanned-PDF detection to it so the cascade falls through | §11.1 says a scanned PDF falls through to the abstract |
+| 2026-10-28 | Reference-list detection | Last "References"-type heading after 30% of the text, ending at the next "Appendix" heading; a chunk is bibliography when half of it lies in that region and it has >=3 years and a venue token | Keeps appendices after the references (§8) |
+| 2026-10-28 | Heading isolation | Headings are put on their own paragraph during normalisation so they survive line-joining | Needed for section hints and the reference heading |
+| 2026-10-28 | Global text cache payload | Pages and meta only; chunks are recomputed (deterministic) when copied into a paper DB | Smaller cache, chunk ids stay stable |
+| 2026-10-28 | Scanned detection | Average <200 characters per page; the validator makes the cascade fall through to the next provider | §8, §11.1 |
