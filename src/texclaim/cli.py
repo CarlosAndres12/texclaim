@@ -84,9 +84,46 @@ def check(
 
 
 @app.command()
-def fetch(folder: FolderArg = Path(".")) -> None:
+def fetch(
+    folder: FolderArg = Path("."),
+    main_file: Annotated[str | None, typer.Option("--main", help="Root .tex file.")] = None,
+    offline: Annotated[bool, typer.Option("--offline", help="No network requests.")] = False,
+    openalex_api_key: Annotated[
+        str | None, typer.Option("--openalex-api-key", help="Prefer the environment or keyring.")
+    ] = None,
+    cache_dir: Annotated[Path | None, typer.Option("--cache-dir")] = None,
+    pdf_dir: Annotated[list[str] | None, typer.Option("--pdf-dir")] = None,
+) -> None:
     """Resolve and download sources; print the missing-source checklist."""
-    _stub("fetch")
+    from texclaim.config import ConfigError, load_settings
+    from texclaim.db.state_store import RunLockedError, run_lock
+    from texclaim.pipeline import prepare
+    from texclaim.sources.catalog import missing_source_checklist
+
+    if openalex_api_key:
+        typer.echo("warning: keys on the command line end up in shell history", err=True)
+    try:
+        settings = load_settings(
+            folder,
+            cli={"main": main_file, "offline": offline or None, "pdf_dirs": pdf_dir or None},
+        )
+        with run_lock(folder):
+            prep = prepare(folder, settings, cache_dir=cache_dir, openalex_key=openalex_api_key)
+    except RunLockedError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(2) from e
+    except ConfigError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(2) from e
+    total = len(prep.results)
+    full = sum(r.status == "FULL_TEXT" for r in prep.results.values())
+    typer.echo(f"{full} of {total} cited works have full text")
+    for row in missing_source_checklist(prep.bibdb, prep.results, settings.pdf_dirs[0]):
+        typer.echo(f"\n{row['key']}  [{row['status']}]  {row['title'] or ''}")
+        for label, k in (("DOI", "doi_url"), ("page", "landing_page")):
+            if row[k]:
+                typer.echo(f"  {label}: {row[k]}")
+        typer.echo(f"  drop a PDF at: {row['drop_path']}")
 
 
 @app.command()

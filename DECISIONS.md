@@ -15,3 +15,8 @@
 | 2026-10-28 | Empty attributed span | Falls back to the whole sentence when a citation opens the sentence | A hint of '' is useless to the verifier |
 | 2026-10-28 | citations.unit_key at parse time | Left '' by the parser; Phase 6 fills it once sources are resolved | Key depends on source hash |
 | 2026-10-28 | Include de-duplication | A file included twice is parsed once (first inclusion) | Avoids duplicate claims |
+| 2026-10-28 | GROBID TEI download | Not fetched in v1 (`has_grobid` is recorded only) | TEI is used only for section headings (Phase 9); each file costs $0.01 |
+| 2026-10-28 | Local PDF size rule | The 10 KB minimum applies to downloads only; local PDFs need just the `%PDF-` header | User-supplied files are trusted more; also small test PDFs |
+| 2026-10-28 | Snapshot writer | `snapshot.write_snapshot` replaces source_files, claims, citations and references_catalog in one transaction; citations.unit_key stays '' until Phase 6 | §9 |
+| 2026-10-28 | Inactive OpenAlex key | On `403 key_not_activated` the client retries once without the key and continues keyless | §5 |
+| 2026-10-28 | Validator hook | `Locator` takes a `SourceValidator`; Phase 4 adds scanned-PDF detection to it so the cascade falls through | §11.1 says a scanned PDF falls through to the abstract |
