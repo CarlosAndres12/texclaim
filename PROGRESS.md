@@ -7,5 +7,5 @@
 - [x] Phase 4: Extraction and index
 - [x] Phase 5: Verification engine
 - [x] Phase 6: Incremental planning and resume
-- [ ] Phase 7: Reports, CLI polish, end-to-end
+- [x] Phase 7: Reports, CLI polish, end-to-end
 - [ ] Phase 8: Evaluation harness (needs the author)

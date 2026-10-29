@@ -334,7 +334,8 @@ def test_provider_error_gives_exit_code_3(paper, cache_dir, monkeypatch):
         app,
         ["check", str(paper), "--offline", "--model", "fake/a", "--cache-dir", str(cache_dir)],
     )
-    assert r.exit_code == 0, r.output
+    # only the one failed unit was queued; exit 1 is the fixture's missing .bib entry (fail-on)
+    assert "1 of 1 queued units verified" in r.output and r.exit_code == 1, r.output
 
 
 def test_check_without_model_exits_2(paper, cache_dir):

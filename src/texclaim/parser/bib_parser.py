@@ -89,6 +89,7 @@ class BibEntry:
     entry_hash: str
     missing_fields: list[str]
     raw_fields: dict[str, str] = field(default_factory=dict, repr=False)
+    line: int | None = None  # 1-based line of the entry in its .bib file
 
     @property
     def lookup_doi(self) -> str | None:
@@ -151,6 +152,9 @@ def _entry_from(e, bib_file: str) -> BibEntry:
         entry_hash=digest,
         missing_fields=missing,
         raw_fields=f,
+        line=(getattr(e, "start_line", None) or 0) + 1
+        if getattr(e, "start_line", None) is not None
+        else None,
     )
 
 

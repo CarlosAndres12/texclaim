@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import datetime
 import io
 
 from fpdf import FPDF
 from pypdf import PdfWriter
 
+FIXED_DATE = datetime.datetime(2000, 1, 1, tzinfo=datetime.UTC)
 MIN_DOWNLOAD_BYTES = 12_000  # downloads must exceed 10 KB (PLAN §7.4)
 
 
@@ -22,6 +24,7 @@ def make_pdf(
 ) -> bytes:
     """One page per string. `first_label` sets printed page labels (e.g. 1423, 1424, ...)."""
     pdf = FPDF()
+    pdf.set_creation_date(FIXED_DATE)
     pdf.set_auto_page_break(False)
     for text in pages:
         pdf.add_page()
@@ -46,6 +49,7 @@ def make_scanned_pdf(n_pages: int = 2, pad: bool = True) -> bytes:
     buf = io.BytesIO()
     img.save(buf, "PNG")
     pdf = FPDF()
+    pdf.set_creation_date(FIXED_DATE)
     for _ in range(n_pages):
         pdf.add_page()
         pdf.image(io.BytesIO(buf.getvalue()), x=10, y=10, w=150)

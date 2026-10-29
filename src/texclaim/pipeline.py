@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +20,8 @@ from texclaim.sources.catalog import resolve_sources
 from texclaim.sources.global_cache import GlobalCache
 from texclaim.sources.indexing import index_sources
 from texclaim.sources.locator import ExtractingValidator, SourceResult
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -35,19 +39,24 @@ def prepare(
     cache_dir: Path | None = None,
     openalex_key: str | None = None,
     extractor=None,
+    on_stage: Callable[[str], None] | None = None,
 ) -> Prepared:
     folder = folder.resolve()
+    stage = on_stage or (lambda _name: None)
+    stage("parse")
     parsed = parse_manuscript(folder, settings.main, settings.extra_cite_commands)
     bibdb = parse_bib_files(folder, parsed.root, parsed.bib_resources)
     cache = GlobalCache(paths.global_cache_dir(cache_dir))
     try:
         key = openalex_key or resolve_secret("openalex_api_key")
+        stage("resolve, download and extract")
         validator = ExtractingValidator(cache, extractor)
         results, budget = asyncio.run(
             resolve_sources(
                 folder, parsed, bibdb, settings, cache, openalex_key=key, validator=validator
             )
         )
+        log.debug("resolved %d sources", len(results))
         conn = open_db(folder)
         try:
             index_sources(conn, results, cache, extractor)

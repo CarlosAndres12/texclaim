@@ -39,6 +39,8 @@ class CheckOptions:
     report_language: str = "en"
     cache_dir: Path | None = None
     openalex_key: str | None = None
+    on_stage: Callable[[str], None] | None = None
+    on_result: Callable | None = None
 
 
 @dataclass
@@ -51,6 +53,7 @@ class CheckOutcome:
     reused: int = 0
     queue_result: QueueOutcome = field(default_factory=QueueOutcome)
     notices: list[str] = field(default_factory=list)
+    folder: Path | None = None
 
     @property
     def incomplete(self) -> bool:
@@ -159,7 +162,7 @@ async def _verify_phase(
             run_queue(
                 queue, conn, verifier, settings,
                 run_id=run_id, budget=budget, concurrency=opts.concurrency or 1, stop=stop,
-                report_language=opts.report_language, cache=cache,
+                report_language=opts.report_language, cache=cache, on_result=opts.on_result,
             )
         )  # fmt: skip
         stop_wait = asyncio.create_task(stop.wait())
@@ -196,7 +199,7 @@ def run_check(
 def _run_check_locked(folder, settings, verifier, opts, extractor, stop, handle_signals):
     prep = prepare(
         folder, settings, cache_dir=opts.cache_dir, openalex_key=opts.openalex_key,
-        extractor=extractor,
+        extractor=extractor, on_stage=opts.on_stage,
     )  # fmt: skip
     conn = open_db(folder)
     notices: list[str] = []
@@ -210,6 +213,9 @@ def _run_check_locked(folder, settings, verifier, opts, extractor, stop, handle_
                 f"+ 4000; the full-text budget was lowered for this run"
             )
 
+        from texclaim.reporting.write import resolve_report_language
+
+        opts.report_language = resolve_report_language(settings, [u.text_norm for u in units])
         selector = {"force": opts.force, "recheck": opts.recheck}
         epoch: str | None = None
         if opts.resume:
@@ -241,12 +247,16 @@ def _run_check_locked(folder, settings, verifier, opts, extractor, stop, handle_
                 f"{stale} unit(s) were verified with another model and were kept; "
                 "use --recheck stale-model to re-verify them"
             )
-        outcome = CheckOutcome(run_id, "dry-run", prep, units, queue, reused, notices=notices)
+        outcome = CheckOutcome(
+            run_id, "dry-run", prep, units, queue, reused, notices=notices, folder=folder
+        )
         if opts.dry_run:
             return outcome
 
         qres = QueueOutcome()
         status = "completed"
+        if opts.on_stage:
+            opts.on_stage("verify")
         if queue:
             if verifier is None:
                 raise ConfigError("no verifier configured")

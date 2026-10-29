@@ -33,3 +33,10 @@
 | 2026-10-28 | Run status on provider errors | Run ends `completed`; errors go to run_errors and the CLI exits 3 | §10.4: errors are never cached and retried on the next plain run; only interrupted/budget_exhausted runs are resumable |
 | 2026-10-28 | Selector storage | `--force`/`--recheck` selector is kept inside runs.settings_json under "selector" | No schema change; `--resume` reads it back |
 | 2026-10-28 | Deterministic results | Written once per unit key, never re-queued by --force | They cost nothing and change only when the source status changes (new key) |
+| 2026-10-28 | Report data model | One dict (json_report.build_report) rendered to both Markdown and JSON; unit keys are read back from citations.unit_key, not recomputed | Single source of truth; avoids key drift if settings differ |
+| 2026-10-28 | Integrity persistence | Computed at the end of `check` (needs the OpenAlex work objects) and stored in integrity_issues; `show`/`status` read the DB | Author surnames and retraction flags are not in references_catalog |
+| 2026-10-28 | Extra integrity codes | Added MALFORMED_BIB_ENTRY, MISSING_BIB_FILE and EMPTY_CITE_KEY alongside the §13.1 list | They already exist as statuses/diagnostics; hiding them would be worse |
+| 2026-10-28 | fail_on vocabulary | Lower-case verdicts (contradicted, partially_supported, not_found, uncheckable), needs_review, claim flags (no_support, padding) and integrity codes | §12 only names two examples |
+| 2026-10-28 | Report language | `report_language=auto` resolves once per run from the claims' stopword ratio and is used for model explanations; it is not part of unit keys | User chose auto-match; changing language alone should not re-verify |
+| 2026-10-28 | Finding ids | `F-` + unit_key[:8] for units; `C-<claim_pk>` for claim flags (not stable across edits, not suppressible); `I-` + hash for integrity issues | §13 only fixes the unit form |
+| 2026-10-28 | Golden files | tests/golden/e2e_report.{md,json}; regenerate with UPDATE_GOLDEN=1 after reviewing the diff | §14 |

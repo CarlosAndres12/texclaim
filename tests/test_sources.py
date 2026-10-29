@@ -7,6 +7,7 @@ import respx
 from typer.testing import CliRunner
 
 from fixtures.make_pdfs import make_html_as_pdf, make_pdf, paper_pdf
+from fixtures.oa import oa_work
 from texclaim import paths
 from texclaim.cli import app
 from texclaim.config import Settings, load_settings
@@ -40,26 +41,6 @@ def entry(key="k", title="Deep Things", surname="Smith", year="2020", doi=None, 
         authors=[{"first": "A", "last": surname}], year=year, doi=doi, arxiv_id=arxiv,
         pmid=None, local_files=[], entry_hash="h", missing_fields=[],
     )  # fmt: skip
-
-
-def oa_work(wid="W1", doi="10.1000/a", title="Deep Things", year=2020, surname="Smith", **kw):
-    d = {
-        "id": f"https://openalex.org/{wid}",
-        "doi": f"https://doi.org/{doi}" if doi else None,
-        "title": title,
-        "publication_year": year,
-        "authorships": [{"author": {"display_name": f"Ann {surname}"}}],
-        "ids": {},
-        "language": "en",
-        "is_retracted": False,
-        "primary_location": {"landing_page_url": f"https://pub.example/{wid}"},
-        "best_oa_location": None,
-        "locations": [],
-        "has_content": {"pdf": False, "grobid_xml": False},
-        "abstract_inverted_index": {"We": [0], "study": [1], "things": [2]},
-    }
-    d.update(kw)
-    return d
 
 
 def make_http(**kw):
