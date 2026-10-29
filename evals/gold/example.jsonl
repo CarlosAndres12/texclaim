@@ -1,0 +1,2 @@
+# Synthetic examples showing the format. Replace with your own labeled units.
+{"id": "ex-1", "claim": "The method reaches 84.2% accuracy [@ex].", "key": "ex", "label": "SUPPORTED", "source_text": "We evaluate on ImageNet. Our method reaches 84.2% accuracy without pretraining. Training uses 8 GPUs for two days and a cosine learning rate schedule with warmup over five epochs."}

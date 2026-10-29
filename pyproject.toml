@@ -44,6 +44,7 @@ markers = ["live: calls real services; runs only with TEXCLAIM_LIVE_TESTS=1"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+pythonpath = ["evals"]
 
 [tool.ruff]
 line-length = 100

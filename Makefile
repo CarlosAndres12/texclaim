@@ -12,4 +12,4 @@ lint:
 
 eval:
 	@test -n "$(MODEL)" || { echo "usage: make eval MODEL=<model>"; exit 2; }
-	python evals/run.py --model "$(MODEL)"
+	python evals/run.py --model "$(MODEL)" $(ARGS)
