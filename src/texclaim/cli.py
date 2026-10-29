@@ -57,9 +57,30 @@ def init(folder: FolderArg = Path(".")) -> None:
 
 
 @app.command()
-def check(folder: FolderArg = Path(".")) -> None:
+def check(
+    folder: FolderArg = Path("."),
+    main_file: Annotated[str | None, typer.Option("--main", help="Root .tex file.")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Plan only; no LLM calls.")] = False,
+) -> None:
     """Run the full verification pipeline and write reports."""
-    _stub("check")
+    from texclaim.config import ConfigError, load_settings
+    from texclaim.parser import parse_manuscript
+
+    try:
+        settings = load_settings(folder, cli={"main": main_file})
+        parsed = parse_manuscript(folder, settings.main, settings.extra_cite_commands)
+    except ConfigError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(2) from e
+    for d in parsed.diagnostics:
+        where = f"{d.file}:{d.line} " if d.file and d.line else ""
+        typer.echo(f"{d.severity}: {where}{d.code}: {d.detail}", err=True)
+    for c in parsed.claims:
+        keys = ", ".join(dict.fromkeys(k.bib_key for k in c.citations))
+        typer.echo(f"{c.file_path}:{c.line_start} [{c.unit_kind}] {keys}: {c.text_norm}")
+    if not dry_run:
+        typer.echo("the verification pipeline is not implemented yet; use --dry-run", err=True)
+        raise typer.Exit(2)
 
 
 @app.command()

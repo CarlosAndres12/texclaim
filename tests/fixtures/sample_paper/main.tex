@@ -1,0 +1,19 @@
+\documentclass{article}
+\usepackage{natbib}
+\newcommand{\mycite}[1]{\citep{#1}}
+\begin{document}
+\title{Sample}
+\maketitle
+\input{sections/intro}
+\section{Methods}
+We follow Smith et al.~\cite{smith2020} and then train a model.
+% A commented sentence that cites \cite{commented2020}.
+\iffalse
+Hidden claim \cite{hidden2020}.
+\fi
+\input{sections/missing}
+\subimport{sections/sub/}{extra}
+\bibliographystyle{plain}
+\bibliography{references}
+\addbibresource{more.bib}
+\end{document}

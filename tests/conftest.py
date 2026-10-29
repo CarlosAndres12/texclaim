@@ -1,4 +1,9 @@
+import shutil
+from pathlib import Path
+
 import pytest
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture(autouse=True)
@@ -20,3 +25,11 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "live" in item.keywords:
             item.add_marker(skip)
+
+
+@pytest.fixture
+def sample_paper(tmp_path):
+    """A writable copy of the sample manuscript."""
+    dest = tmp_path / "paper"
+    shutil.copytree(FIXTURES / "sample_paper", dest)
+    return dest
