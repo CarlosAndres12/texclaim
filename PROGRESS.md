@@ -1,7 +1,7 @@
 # Progress
 
 - [x] Phase 0: Scaffold and global install
-- [ ] Phase 1: Config, paths and database
+- [x] Phase 1: Config, paths and database
 - [ ] Phase 2: LaTeX parsing
 - [ ] Phase 3: Bibliography, sources and global cache
 - [ ] Phase 4: Extraction and index

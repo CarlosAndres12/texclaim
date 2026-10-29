@@ -44,7 +44,16 @@ def _stub(name: str) -> None:
 @app.command()
 def init(folder: FolderArg = Path(".")) -> None:
     """Create .texclaim/ with config and .gitignore."""
-    _stub("init")
+    from texclaim.init_project import init_paper
+
+    if not folder.is_dir():
+        typer.echo(f"not a directory: {folder}", err=True)
+        raise typer.Exit(2)
+    created = init_paper(folder)
+    for f in created:
+        typer.echo(f"created {f}")
+    if not created:
+        typer.echo("already initialised")
 
 
 @app.command()
