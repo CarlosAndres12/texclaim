@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "texclaim"
+dynamic = ["version"]
+description = "Incremental LaTeX claim and reference verification"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.7",
+    "pydantic>=2.7,<3",
+    "litellm>=1.80",            # exact tested version lives in constraints.txt
+    "pylatexenc>=2.11,<3",      # 3.0 is a beta with API changes
+    "bibtexparser>=2.1,<3",     # v2 API; v1 code does not run on it
+    "pypdf>=5",
+    "httpx>=0.27,<1",
+    "platformdirs>=4.1",
+    "rapidfuzz>=3.6",
+    "filelock>=3.13",
+    "tomli-w>=1.0",
+    "rank-bm25>=0.2.2",         # fallback only, when SQLite lacks FTS5
+]
+
+[project.optional-dependencies]
+keyring = ["keyring>=25"]
+pymupdf = ["pymupdf>=1.24"]     # AGPL; opt-in extractor for hard layouts
+dev = ["pytest>=8.2", "pytest-cov>=5", "pytest-asyncio>=0.23", "respx>=0.21",
+       "fpdf2>=2.7", "hypothesis>=6.100", "ruff>=0.5"]
+
+[project.scripts]
+texclaim = "texclaim.cli:app"
+
+[tool.hatch.version]
+path = "src/texclaim/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/texclaim"]
+
+[tool.pytest.ini_options]
+markers = ["live: calls real services; runs only with TEXCLAIM_LIVE_TESTS=1"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
