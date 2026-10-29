@@ -29,3 +29,7 @@
 | 2026-10-28 | Retry policy | At most one retry per unit, covering unparsable JSON, unverifiable quotes and missing explanations; feedback names the problem | §11.5 |
 | 2026-10-28 | Cross-language terms cache | Stored in the global cache.db (`query_terms`), an internal table | §11.2 says cache by (claim_hash, language); the paper DB schema is a public contract |
 | 2026-10-28 | Cost budget | reserve/settle around each call using the running average cost; the first call uses `verifier.estimate_cost` if present | Stops scheduling without needing price tables |
+| 2026-10-28 | Phase 2 gate command | `check --dry-run` now also resolves sources (needed for token estimates), so the Phase 2 CLI test passes `--offline`; it still lists every claim | Dry-run per §11.6 needs sources; the listing behaviour is unchanged |
+| 2026-10-28 | Run status on provider errors | Run ends `completed`; errors go to run_errors and the CLI exits 3 | §10.4: errors are never cached and retried on the next plain run; only interrupted/budget_exhausted runs are resumable |
+| 2026-10-28 | Selector storage | `--force`/`--recheck` selector is kept inside runs.settings_json under "selector" | No schema change; `--resume` reads it back |
+| 2026-10-28 | Deterministic results | Written once per unit key, never re-queued by --force | They cost nothing and change only when the source status changes (new key) |

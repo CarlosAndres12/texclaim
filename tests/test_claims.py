@@ -167,6 +167,6 @@ def test_check_dry_run_lists_claims(sample_paper):
 
     from texclaim.cli import app
 
-    r = CliRunner().invoke(app, ["check", str(sample_paper), "--dry-run"])
+    r = CliRunner().invoke(app, ["check", str(sample_paper), "--dry-run", "--offline"])
     assert r.exit_code == 0
     assert "sections/intro.tex:2 [sentence] vaswani2017, lecun1998, dosovitskiy2021" in r.stdout

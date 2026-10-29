@@ -60,27 +60,85 @@ def init(folder: FolderArg = Path(".")) -> None:
 def check(
     folder: FolderArg = Path("."),
     main_file: Annotated[str | None, typer.Option("--main", help="Root .tex file.")] = None,
+    model: Annotated[str | None, typer.Option("--model", help="LiteLLM model string.")] = None,
+    api_key: Annotated[
+        str | None, typer.Option("--api-key", help="Prefer the environment.")
+    ] = None,
+    openalex_api_key: Annotated[str | None, typer.Option("--openalex-api-key")] = None,
+    force: Annotated[bool, typer.Option("--force", help="Re-verify every unit in scope.")] = False,
+    recheck: Annotated[str | None, typer.Option("--recheck", help="flagged | stale-model")] = None,
+    resume: Annotated[
+        bool, typer.Option("--resume", help="Continue the last interrupted run.")
+    ] = False,
+    only_file: Annotated[list[str] | None, typer.Option("--only-file")] = None,
+    only_key: Annotated[list[str] | None, typer.Option("--only-key")] = None,
+    evidence: Annotated[
+        str | None, typer.Option("--evidence", help="auto | full | passages")
+    ] = None,
+    concurrency: Annotated[int | None, typer.Option("--concurrency")] = None,
+    max_cost: Annotated[float | None, typer.Option("--max-cost", help="LLM budget in USD.")] = None,
+    offline: Annotated[bool, typer.Option("--offline", help="No network requests.")] = False,
+    pdf_dir: Annotated[list[str] | None, typer.Option("--pdf-dir")] = None,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Plan only; no LLM calls.")] = False,
+    cache_dir: Annotated[Path | None, typer.Option("--cache-dir")] = None,
 ) -> None:
-    """Run the full verification pipeline and write reports."""
-    from texclaim.config import ConfigError, load_settings
-    from texclaim.parser import parse_manuscript
+    """Run the full verification pipeline."""
+    from texclaim.check import CheckOptions, make_verifier, run_check
+    from texclaim.config import ConfigError, load_settings, resolve_secret
+    from texclaim.db.state_store import RunLockedError
 
+    if recheck not in (None, "flagged", "stale-model"):
+        typer.echo("error: --recheck must be 'flagged' or 'stale-model'", err=True)
+        raise typer.Exit(2)
+    if evidence not in (None, "auto", "full", "passages"):
+        typer.echo("error: --evidence must be auto, full or passages", err=True)
+        raise typer.Exit(2)
+    if api_key or openalex_api_key:
+        typer.echo("warning: keys on the command line end up in shell history", err=True)
     try:
-        settings = load_settings(folder, cli={"main": main_file})
-        parsed = parse_manuscript(folder, settings.main, settings.extra_cite_commands)
-    except ConfigError as e:
+        settings = load_settings(
+            folder,
+            cli={
+                "main": main_file, "model": model, "evidence.strategy": evidence,
+                "budget.concurrency": concurrency, "offline": offline or None,
+                "pdf_dirs": pdf_dir or None,
+            },
+        )  # fmt: skip
+        verifier = None if dry_run else make_verifier(settings, api_key)
+        opts = CheckOptions(
+            force=force, recheck=recheck, resume=resume, only_files=only_file or [],
+            only_keys=only_key or [], concurrency=settings.budget.concurrency, max_cost=max_cost,
+            dry_run=dry_run, cache_dir=cache_dir,
+            openalex_key=openalex_api_key or resolve_secret("openalex_api_key"),
+        )  # fmt: skip
+        outcome = run_check(folder, settings, verifier, opts, handle_signals=True)
+    except (ConfigError, RunLockedError) as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(2) from e
+    parsed = outcome.prepared.parsed
     for d in parsed.diagnostics:
         where = f"{d.file}:{d.line} " if d.file and d.line else ""
         typer.echo(f"{d.severity}: {where}{d.code}: {d.detail}", err=True)
-    for c in parsed.claims:
-        keys = ", ".join(dict.fromkeys(k.bib_key for k in c.citations))
-        typer.echo(f"{c.file_path}:{c.line_start} [{c.unit_kind}] {keys}: {c.text_norm}")
-    if not dry_run:
-        typer.echo("the verification pipeline is not implemented yet; use --dry-run", err=True)
-        raise typer.Exit(2)
+    for n in outcome.notices:
+        typer.echo(f"notice: {n}", err=True)
+    if dry_run:
+        for c in parsed.claims:
+            keys = ", ".join(dict.fromkeys(k.bib_key for k in c.citations))
+            typer.echo(f"{c.file_path}:{c.line_start} [{c.unit_kind}] {keys}: {c.text_norm}")
+        typer.echo(
+            f"{len(outcome.units)} units, {len(outcome.queue)} would be verified, "
+            f"{outcome.reused} reused"
+        )
+        return
+    q = outcome.queue_result
+    typer.echo(
+        f"{q.verified} of {len(outcome.queue)} queued units verified "
+        f"({outcome.reused} reused, {q.errors} errors, ${q.cost_usd:.4f})"
+    )
+    if outcome.status == "interrupted":
+        typer.echo("interrupted; run the same command to continue", err=True)
+    if outcome.incomplete:
+        raise typer.Exit(3)
 
 
 @app.command()
