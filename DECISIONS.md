@@ -24,3 +24,8 @@
 | 2026-10-28 | Heading isolation | Headings are put on their own paragraph during normalisation so they survive line-joining | Needed for section hints and the reference heading |
 | 2026-10-28 | Global text cache payload | Pages and meta only; chunks are recomputed (deterministic) when copied into a paper DB | Smaller cache, chunk ids stay stable |
 | 2026-10-28 | Scanned detection | Average <200 characters per page; the validator makes the cascade fall through to the next provider | §8, §11.1 |
+| 2026-10-28 | Block ids | Page blocks `P<n>`, chunk blocks `<sha12>:<ordinal>`, abstract `ABSTRACT`; the quote's block_id is matched leniently and falls back to a search in all blocks | Models copy ids imperfectly; position comes from the match, not the id |
+| 2026-10-28 | Token estimate | chars/4 for the strategy decision and passage budget; litellm.token_counter only for --dry-run | Strategy must not depend on the model (D6); cheap and deterministic |
+| 2026-10-28 | Retry policy | At most one retry per unit, covering unparsable JSON, unverifiable quotes and missing explanations; feedback names the problem | §11.5 |
+| 2026-10-28 | Cross-language terms cache | Stored in the global cache.db (`query_terms`), an internal table | §11.2 says cache by (claim_hash, language); the paper DB schema is a public contract |
+| 2026-10-28 | Cost budget | reserve/settle around each call using the running average cost; the first call uses `verifier.estimate_cost` if present | Stops scheduling without needing price tables |

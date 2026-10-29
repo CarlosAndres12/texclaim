@@ -5,7 +5,7 @@
 - [x] Phase 2: LaTeX parsing
 - [x] Phase 3: Bibliography, sources and global cache
 - [x] Phase 4: Extraction and index
-- [ ] Phase 5: Verification engine
+- [x] Phase 5: Verification engine
 - [ ] Phase 6: Incremental planning and resume
 - [ ] Phase 7: Reports, CLI polish, end-to-end
 - [ ] Phase 8: Evaluation harness (needs the author)

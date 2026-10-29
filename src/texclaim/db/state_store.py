@@ -103,3 +103,50 @@ def run_lock(paper: Path) -> Iterator[None]:
         yield
     finally:
         lock.release()
+
+
+_B32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def new_ulid() -> str:
+    import os
+    import time
+
+    n = (int(time.time() * 1000) << 80) | int.from_bytes(os.urandom(10), "big")
+    return "".join(_B32[(n >> (5 * i)) & 31] for i in range(25, -1, -1))
+
+
+def create_run(
+    conn: sqlite3.Connection,
+    settings_json: str,
+    model: str | None,
+    tool_version: str,
+    force_epoch: str | None = None,
+) -> str:
+    from datetime import UTC, datetime
+
+    run_id = new_ulid()
+    conn.execute(
+        "INSERT INTO runs(run_id, started_at, status, settings_json, force_epoch, tool_version,"
+        " model) VALUES (?,?,?,?,?,?,?)",
+        (run_id, datetime.now(UTC).isoformat(), "running", settings_json, force_epoch,
+         tool_version, model),
+    )  # fmt: skip
+    return run_id
+
+
+def finish_run(
+    conn: sqlite3.Connection,
+    run_id: str,
+    status: str,
+    llm_calls: int = 0,
+    llm_cost: float = 0.0,
+    openalex_cost: float = 0.0,
+) -> None:
+    from datetime import UTC, datetime
+
+    conn.execute(
+        "UPDATE runs SET status=?, finished_at=?, llm_calls=?, llm_cost_usd=?,"
+        " openalex_cost_usd=? WHERE run_id=?",
+        (status, datetime.now(UTC).isoformat(), llm_calls, llm_cost, openalex_cost, run_id),
+    )

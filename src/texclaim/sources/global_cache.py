@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS identifiers(
 CREATE TABLE IF NOT EXISTS openalex_works(
   openalex_id TEXT PRIMARY KEY, doi TEXT, json TEXT NOT NULL, fetched_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS works_by_doi ON openalex_works(doi);
+CREATE TABLE IF NOT EXISTS query_terms(
+  claim_hash TEXT NOT NULL, language TEXT NOT NULL, terms TEXT NOT NULL,
+  PRIMARY KEY(claim_hash, language));
 CREATE TABLE IF NOT EXISTS negative(
   id_type TEXT NOT NULL, id_value TEXT NOT NULL, provider TEXT NOT NULL,
   reason TEXT, checked_at TEXT NOT NULL, PRIMARY KEY(id_type, id_value, provider));
@@ -137,6 +140,19 @@ class GlobalCache:
             (id_type, id_value.lower(), provider),
         ).fetchone()
         return bool(row) and datetime.fromisoformat(row["checked_at"]) > _now() - NEGATIVE_TTL
+
+    # ---- cross-language search terms ------------------------------------------------
+    def get_terms(self, claim_hash: str, language: str) -> str | None:
+        row = self.db.execute(
+            "SELECT terms FROM query_terms WHERE claim_hash=? AND language=?",
+            (claim_hash, language),
+        ).fetchone()
+        return row["terms"] if row else None
+
+    def put_terms(self, claim_hash: str, language: str, terms: str) -> None:
+        self.db.execute(
+            "INSERT OR REPLACE INTO query_terms VALUES (?,?,?)", (claim_hash, language, terms)
+        )
 
     # ---- extracted text -----------------------------------------------------------------
     def text_path(self, sha: str, extractor_version: int) -> Path:
