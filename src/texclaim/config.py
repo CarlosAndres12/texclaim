@@ -40,6 +40,7 @@ class SourceSettings(BaseModel):
             "openalex_content",
             "oa_locations",
             "arxiv",
+            "asta",
             "abstract",
         ]
     )

@@ -40,6 +40,7 @@ async def resolve_sources(
     cache: GlobalCache,
     *,
     openalex_key: str | None = None,
+    asta_key: str | None = None,
     http: HttpClient | None = None,
     validator: SourceValidator | None = None,
     budget: RunBudget | None = None,
@@ -51,9 +52,14 @@ async def resolve_sources(
     http = http or make_http(settings)
     openalex = None if settings.offline else OpenAlexClient(http, cache, budget, openalex_key)
     arxiv = None if settings.offline else ArxivClient(http, budget)
+    asta = None
+    if not settings.offline and asta_key:
+        from texclaim.sources.asta_client import AstaClient
+
+        asta = AstaClient(asta_key, cache.root)
     locator = Locator(
         paper, settings, cache, http=http, openalex=openalex, arxiv=arxiv, budget=budget,
-        validator=validator,
+        validator=validator, asta=asta,
     )  # fmt: skip
     results: dict[str, SourceResult] = {}
     entries = []

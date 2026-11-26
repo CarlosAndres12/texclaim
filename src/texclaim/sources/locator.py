@@ -89,11 +89,14 @@ class Locator:
         budget: RunBudget | None = None,
         validator: SourceValidator | None = None,
         pdf_dirs: list[Path] | None = None,
+        asta=None,
     ) -> None:
         self.paper = paper.resolve()
         self.settings = settings
         self.cache = cache
         self.http, self.openalex, self.arxiv = http, openalex, arxiv
+        self.asta = asta
+        self._asta: dict[str, dict | None] = {}
         self.budget = budget or RunBudget()
         self.validator = validator or IdentityValidator()
         dirs = pdf_dirs if pdf_dirs is not None else [Path(d) for d in settings.pdf_dirs]
@@ -115,6 +118,12 @@ class Locator:
             for e in entries:
                 raw = e.lookup_doi and self.cache.get_work(doi=e.lookup_doi)
                 works[e.key] = parse_work(raw) if raw else None
+        if self.asta is not None and not self.offline and "asta" in self.settings.sources.order:
+            from texclaim.sources.asta_client import asta_refs
+
+            refs = [r for e in entries for r in asta_refs(e, works.get(e.key))]
+            if refs:
+                self._asta = await self.asta.papers(refs)
         return {e.key: await self.locate(e, works.get(e.key)) for e in entries}
 
     async def locate(self, entry: BibEntry, work: OpenAlexWork | None) -> SourceResult:
@@ -297,6 +306,46 @@ class Locator:
             return False
         return self._accept(res, entry, work, data, "arxiv", "submittedVersion", f"arxiv:{aid}")
 
+    async def _p_asta(self, entry: BibEntry, work, res: SourceResult) -> bool:
+        """Asta / Semantic Scholar: open-access PDF link, else an abstract for the fallback."""
+        if self.offline or self.asta is None or self.http is None:
+            self._note(res, "asta", "skipped", "offline or no ASTA_API_KEY")
+            return False
+        from texclaim.sources.asta_client import asta_refs
+
+        paper = None
+        for ref in asta_refs(entry, work):
+            paper = self._asta.get(ref)
+            if paper:
+                break
+        if paper is None and entry.title and not asta_refs(entry, work):
+            paper = await self.asta.by_title(entry.title)
+            if paper and not _title_matches(entry.title, paper.get("title") or ""):
+                self._note(res, "asta", "title_mismatch", paper.get("title") or "")
+                paper = None
+        if not paper:
+            self._note(res, "asta", "miss")
+            return False
+        pdf = (paper.get("openAccessPdf") or {}).get("url")
+        if pdf:
+            try:
+                r = await self.http.get(pdf)
+            except HttpError as e:
+                self._note(res, "asta", "error", str(e))
+                r = None
+            if r is not None and r.status == 200 and is_pdf(r.body):
+                if self._accept(res, entry, work, r.body, "asta", None, pdf):
+                    return True
+            elif r is not None:
+                self._note(res, "asta", f"http_{r.status}" if r.status != 200 else "not_a_pdf", pdf)
+        abstract = paper.get("abstract") or ((paper.get("tldr") or {}).get("text"))
+        if abstract and not res.abstract:
+            res.abstract = abstract
+            self._note(res, "asta", "abstract")
+        else:
+            self._note(res, "asta", "no_pdf")
+        return False
+
     async def _p_abstract(self, entry: BibEntry, work, res: SourceResult) -> bool:
         if work and work.abstract:
             res.abstract = work.abstract
@@ -304,3 +353,9 @@ class Locator:
         else:
             self._note(res, "abstract", "miss")
         return False  # the cascade falls through to ABSTRACT_ONLY at the end
+
+
+def _title_matches(a: str, b: str) -> bool:
+    from rapidfuzz import fuzz
+
+    return fuzz.token_set_ratio(a.lower(), b.lower()) >= 90

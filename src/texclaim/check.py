@@ -41,6 +41,7 @@ class CheckOptions:
     openalex_key: str | None = None
     on_stage: Callable[[str], None] | None = None
     on_result: Callable | None = None
+    on_plan: Callable[[int, int], None] | None = None  # (queued, reused)
 
 
 @dataclass
@@ -127,7 +128,12 @@ def make_verifier(settings: Settings, api_key: str | None = None) -> Verifier:
     from texclaim.config import require_model
     from texclaim.verifier.llm_client import LiteLLMVerifier
 
-    return LiteLLMVerifier(require_model(settings), api_key=api_key)
+    model = require_model(settings)
+    if model == "demo":
+        from texclaim.verifier.demo import DemoVerifier
+
+        return DemoVerifier()
+    return LiteLLMVerifier(model, api_key=api_key)
 
 
 def install_signal_handlers(loop: asyncio.AbstractEventLoop, stop: asyncio.Event) -> Callable:
@@ -262,6 +268,8 @@ def _run_check_locked(folder, settings, verifier, opts, extractor, stop, handle_
         outcome = CheckOutcome(
             run_id, "dry-run", prep, units, queue, reused, notices=notices, folder=folder
         )
+        if opts.on_plan:
+            opts.on_plan(len(queue), reused)
         if opts.dry_run:
             return outcome
 

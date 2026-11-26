@@ -20,6 +20,8 @@ app = typer.Typer(
 )
 cache_app = typer.Typer(help="Inspect or shrink the global cache.", no_args_is_help=True)
 app.add_typer(cache_app, name="cache")
+sources_app = typer.Typer(help="Cited works' files.", no_args_is_help=True)
+app.add_typer(sources_app, name="sources")
 
 FolderArg = Annotated[Path, typer.Argument(help="Paper folder (default: current directory).")]
 
@@ -639,3 +641,114 @@ def self_install() -> None:
     if constraints.is_file():
         cmd.append(f"--pip-args=-c {constraints}")
     raise typer.Exit(subprocess.call(cmd))
+
+
+# ---- sources export / report export ---------------------------------------------------------
+@sources_app.command("export")
+def sources_export(
+    folder: FolderArg = Path("."),
+    out: Annotated[
+        Path | None, typer.Option("--out", help="Default: <paper>/sources_export")
+    ] = None,
+    cache_dir: Annotated[Path | None, typer.Option("--cache-dir")] = None,
+) -> None:
+    """Copy each cited work's PDF (or its extracted text/abstract) into a folder."""
+    from texclaim import paths
+    from texclaim.sources.files import export_all
+    from texclaim.sources.global_cache import GlobalCache
+
+    conn = _open_state(folder)
+    cache = GlobalCache(paths.global_cache_dir(cache_dir))
+    dest = out or (folder / "sources_export")
+    try:
+        infos = export_all(conn, cache, dest)
+    finally:
+        cache.close()
+        conn.close()
+    for i in infos:
+        where = i.filename or (i.landing_page or i.doi_url or "-")
+        typer.echo(f"{i.bib_key:24} {i.kind:8} {where}")
+    typer.echo(f"exported to {dest}")
+
+
+@app.command("export")
+def export_report(
+    folder: FolderArg = Path("."),
+    fmt: Annotated[str, typer.Option("--format", help="html | docx")] = "html",
+) -> None:
+    """Convert texclaim_report.md to HTML or Word."""
+    from texclaim.reporting.write import REPORT_MD, convert_report
+
+    md = folder / REPORT_MD
+    if not md.exists():
+        raise _fail(f"{md} not found; run `texclaim check` first")
+    if fmt not in ("html", "docx"):
+        raise _fail("--format must be html or docx")
+    typer.echo(str(convert_report(md, fmt)))
+
+
+# ---- web app, knowledge graph, MCP -------------------------------------------------------------
+@app.command()
+def serve(
+    host: Annotated[str | None, typer.Option("--host", help="Default 127.0.0.1")] = None,
+    port: Annotated[int | None, typer.Option("--port", help="Default 8765")] = None,
+    open_browser: Annotated[bool, typer.Option("--open/--no-open")] = False,
+) -> None:
+    """Start the web app (English/Spanish UI) on this machine."""
+    import os
+
+    import uvicorn
+
+    from texclaim.web.app import create_app
+
+    host = host or os.environ.get("TEXCLAIM_HOST") or "127.0.0.1"
+    port = port or int(os.environ.get("TEXCLAIM_PORT") or 8765)
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        typer.echo(
+            "warning: the web app has no login; anyone who can reach this address can use "
+            "your API keys",
+            err=True,
+        )
+    url = f"http://{host}:{port}"
+    typer.echo(f"texclaim web app: {url}")
+    if open_browser:
+        import threading
+        import webbrowser
+
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    uvicorn.run(create_app(), host=host, port=port, log_level="warning")
+
+
+@app.command()
+def graph(
+    folder: FolderArg = Path("."),
+    llm: Annotated[
+        bool, typer.Option("--llm/--heuristic", help="Extract entities with the model.")
+    ] = False,
+) -> None:
+    """Build the knowledge graph (.texclaim/graph.json) from the latest results."""
+    from texclaim.check import make_verifier
+    from texclaim.config import ConfigError, load_settings
+    from texclaim.graph.build import build_graph_for, graph_path
+
+    _open_state(folder).close()
+    verifier = None
+    if llm:
+        try:
+            verifier = make_verifier(load_settings(folder))
+        except ConfigError as e:
+            raise _fail(str(e)) from e
+    g = build_graph_for(folder.resolve(), verifier=verifier)
+    c = g["stats"]["counts"]
+    typer.echo(
+        f"{len(g['nodes'])} nodes ({', '.join(f'{v} {k}' for k, v in c.items())}), "
+        f"{len(g['edges'])} edges -> {graph_path(folder.resolve())}"
+    )
+
+
+@app.command()
+def mcp(folder: FolderArg = Path(".")) -> None:
+    """Serve the paper's knowledge graph to agents over MCP (stdio)."""
+    from texclaim.graph.mcp_server import serve_stdio
+
+    serve_stdio(folder)

@@ -57,7 +57,14 @@ def prepare(
         validator = ExtractingValidator(cache, extractor)
         results, budget = asyncio.run(
             resolve_sources(
-                folder, parsed, bibdb, settings, cache, openalex_key=key, validator=validator
+                folder,
+                parsed,
+                bibdb,
+                settings,
+                cache,
+                openalex_key=key,
+                validator=validator,
+                asta_key=resolve_secret("asta_api_key"),
             )
         )
         log.debug("resolved %d sources", len(results))

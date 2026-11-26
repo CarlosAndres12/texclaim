@@ -11,6 +11,11 @@ phase gate (`make test lint` green). Decisions taken along the way go to `DECISI
 | LLM for tests | User adds keys to an empty `.env` file I generate; the fake verifier is used until keys exist |
 | Claim length | "default is 2, 1 is available": default `auto` (the LLM decides the span), manual setting also available: `sentence` (1), `two` (2 sentences), `paragraph` |
 | Internal claims | Whole document by default; option to select certain sections |
+| Keys | Added to `.env`: Anthropic (`anthropic/claude-haiku-5-5`), OpenAlex, Asta (works via Asta MCP endpoint), contact email; all verified live |
+| Knowledge graph | Claims + entities: sections, claims, citations, sources (verdict colours) + LLM-extracted entities (methods, datasets, metrics, numbers) and abstract/conclusion ↔ results links |
+| CodeGraph | Evaluate CodeGraph-style tools and graph stores, record the choice; expose the paper graph to agents via MCP |
+| UI kit | Tailwind + shadcn/ui (Radix), dark/light themes; WebGL graph view |
+| LLM budget | Up to $30 on the user's key for live runs, graph extraction and the test loop |
 
 ## Phase 9: keys file and input formats (Markdown, Word)
 
@@ -80,7 +85,7 @@ phase gate (`make test lint` green). Decisions taken along the way go to `DECISI
 
 ## Phase 14: React frontend (`web/`)
 
-- Vite + React + TypeScript + react-router + react-i18next (es/en, browser default, toggle,
+- Vite + React + TypeScript + Tailwind + shadcn/ui (Radix) + react-router + react-i18next (es/en, browser default, toggle,
   persisted), pdf.js viewer. Built into `src/texclaim/web/static/` (committed so a pipx install
   needs no Node).
 - Pages: Home (projects, new project upload), Project settings (model, claim length, internal
@@ -90,6 +95,25 @@ phase gate (`make test lint` green). Decisions taken along the way go to `DECISI
   quote highlighted), Document view (manuscript text with claims highlighted by verdict),
   Sources (status, download PDF/text, upload missing PDF), Settings/Help.
 - Accessible: labels, keyboard navigation, contrast; responsive.
+
+## Phase 14b: knowledge graph
+
+- Evaluation first (recorded in `DECISIONS.md`): CodeGraph-style code knowledge graphs (nodes +
+  typed edges in an embedded store, queried by agents over MCP) versus storage options for a
+  paper graph (SQLite tables + networkx, embedded Kùzu, Neo4j). Criteria: no server, pipx
+  install size, incremental updates, query needs (neighbourhoods, paths), licence.
+- Graph model: nodes `section`, `claim` (cited/internal, role), `work` (cited source + status),
+  `entity` (method, dataset, metric, task, result value), `quote`; edges `in_section`, `cites`
+  (with verdict), `supported_by`/`contradicted_by` (internal claims ↔ manuscript evidence),
+  `mentions` (claim → entity), `same_as` (entity aliases), `about` (work → entity).
+- Entity extraction: one cheap LLM call per batch of claims (cached by claim hash and model);
+  the demo verifier uses noun-phrase heuristics. Incremental: only changed claims re-extracted.
+- API `/api/projects/{id}/graph` (filters: kinds, verdicts, sections; neighbourhood of a node)
+  and an MCP endpoint (`texclaim mcp`, stdio) with tools `graph_search`, `graph_neighbors`,
+  `claim_detail`, `findings`.
+- UI: "Graph" tab with a WebGL force layout (Sigma.js + graphology), colour by verdict/kind,
+  size by degree, search box, filters, legend, hover cards, click → side panel with the claim,
+  quotes and embedded PDF; layouts (force, by section, radial around a node); export PNG/JSON.
 
 ## Phase 15: examples
 

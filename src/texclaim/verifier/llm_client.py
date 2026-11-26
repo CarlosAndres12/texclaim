@@ -143,6 +143,22 @@ class LiteLLMVerifier:
             cost = None
         return parse_screen(raw, len(texts)), cost
 
+    async def extract_entities(self, items: list[tuple[str, str]]):
+        """Knowledge-graph entities for a batch of (key, statement); (dict | None, cost)."""
+        from texclaim.graph.entities import entity_messages, parse_entities
+
+        try:
+            kw = self._kwargs()
+            kw.update(messages=entity_messages(items), max_tokens=2000)
+            resp = await self._litellm.acompletion(**kw)
+        except Exception:  # noqa: BLE001 - the graph falls back to heuristics
+            return None, None
+        try:
+            cost = float(self._litellm.completion_cost(completion_response=resp))
+        except Exception:  # noqa: BLE001
+            cost = None
+        return parse_entities(resp.choices[0].message.content or "", items), cost
+
     async def translate(self, text: str, language: str) -> str:
         from texclaim.verifier.prompts import TRANSLATE_SYSTEM
 

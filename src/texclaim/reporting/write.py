@@ -54,3 +54,33 @@ def write_reports(
     md.write_text(render_markdown(rep), encoding="utf-8")
     js.write_text(json.dumps(rep, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return md, js, rep
+
+
+REPORT_CSS = """
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;
+margin:2rem auto;
+padding:0 1rem;line-height:1.55;color:#1f2328}
+h1,h2,h3{line-height:1.25} h3{border-top:1px solid #d0d7de;padding-top:1rem}
+blockquote{border-left:4px solid #d0d7de;margin:0;padding:0 1rem;color:#57606a}
+table{border-collapse:collapse} td,th{border:1px solid #d0d7de;padding:4px 8px}
+code{background:#f6f8fa;padding:1px 4px;border-radius:4px}
+"""
+
+
+def convert_report(md_path: Path, fmt: str, out: Path | None = None) -> Path:
+    """Markdown report to html or docx with pandoc."""
+    import subprocess
+
+    from texclaim.formats import pandoc_bin
+
+    if fmt not in ("html", "docx"):
+        raise ValueError(f"unsupported format: {fmt}")
+    out = out or md_path.with_suffix("." + fmt)
+    args = [pandoc_bin(), str(md_path), "-f", "gfm", "-o", str(out), "--standalone"]
+    if fmt == "html":
+        css = md_path.parent / ".texclaim" / "report.css"
+        css.parent.mkdir(parents=True, exist_ok=True)
+        css.write_text(REPORT_CSS, encoding="utf-8")
+        args += ["--embed-resources", "--css", str(css), "--metadata", "title=texclaim report"]
+    subprocess.run(args, check=True, capture_output=True, timeout=120)
+    return out
