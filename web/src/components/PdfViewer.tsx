@@ -91,7 +91,12 @@ export function PdfViewer({ url, page = 1, quote, className }: { url: string; pa
       if (cancelled) return;
       if (quote) {
         const hit = highlight(layer, quote);
-        hit?.scrollIntoView({ block: "center", behavior: "smooth" });
+        const wrap = wrapRef.current;
+        if (hit && wrap) {
+          // Scroll only the viewer, never the page
+          const top = hit.getBoundingClientRect().top - wrap.getBoundingClientRect().top + wrap.scrollTop;
+          wrap.scrollTo({ top: Math.max(0, top - wrap.clientHeight / 3), behavior: "smooth" });
+        }
       }
       setRendering(false);
     })().catch((e) => !cancelled && setError(String(e?.message || e)));

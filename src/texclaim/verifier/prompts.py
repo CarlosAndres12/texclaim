@@ -20,7 +20,10 @@ keys are cited together, this source only needs to support its share.
 (credits a method, dataset, tool or definition), POINTER ("see", "e.g.", surveys). For POINTER, \
 topical relevance is enough.
 5. Numbers, comparatives ("outperforms", "first", "always") and scope (dataset, population, \
-conditions) must match. A missing qualifier means PARTIALLY_SUPPORTED.
+conditions) must match. A missing qualifier means PARTIALLY_SUPPORTED only when it changes what \
+the claim asserts (a different dataset, condition or population, a single model where the source \
+reports an ensemble, "always" where the source says "often"). Naming a method without the exact \
+variant behind its headline result, or rounding that keeps the meaning, is still SUPPORTED.
 6. Copy quotes character for character from one block, at most 300 characters each and at most 3, \
 each tagged with its block ID (the text between [[ and ·, for example P5 or ab12cd34ef56:7).
 7. Use NOT_FOUND only when the evidence scope is full_text; otherwise use UNCHECKABLE with \

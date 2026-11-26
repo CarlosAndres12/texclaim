@@ -1,6 +1,6 @@
 # texclaim report
 
-- texclaim <VERSION> · prompt 1.0 · model(s): fake/model · run <RUN> (completed)
+- texclaim <VERSION> · prompt 1.1 · model(s): fake/model · run <RUN> (completed)
 - Run time: <TS> to <TS>
 - Cost: LLM $0.0130 (13 calls) · OpenAlex $0.00
 - Claims: 12 · units: 17 · verified this run: 13 · reused: 4
