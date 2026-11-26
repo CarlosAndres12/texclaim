@@ -12,6 +12,24 @@ texclaim serve                         # then "New project" → upload one of th
 
 Rebuild the Word file after editing `src/word_source.md` with `make examples` (needs pandoc).
 
+## `demo_atencion/` (español, LaTeX; written for live demos)
+
+A short paper about Transformers for long clinical notes. It cites six real arXiv papers and plants
+errors of different kinds; a clean live run flags all of them and nothing else.
+
+| Where | Statement | Expected |
+| --- | --- | --- |
+| Introducción | Transformer drops recurrence and convolutions; 28.4 BLEU En-De; BERT-large 340M | Supported |
+| Introducción | RoBERTa *added* next-sentence prediction | Contradicted (it removed NSP) |
+| Introducción | GPT-3 has 17,500 million parameters | Contradicted (175 billion) |
+| Trabajos relacionados | Longformer removes the need to truncate documents of any length | Partially supported (it handles 4,096 tokens) |
+| Trabajos relacionados | Masked bidirectional pre-training proposed by the Transformer paper | Not found (misattributed; it is BERT) |
+| Trabajos relacionados | Citation `gomez2023` | Missing .bib entry (integrity error) |
+| Resumen | F1 84.2, 2.7 points above the baseline; less memory | Supported by Resultados |
+| Conclusiones | More than 5 F1 points | Contradicted (2.7) |
+| Conclusiones | Memory halved | Contradicted (11.2 vs 14.0 GB) |
+| Conclusiones | Gains hold equally on unseen hospitals, generalises to any institution | Contradicted (0.6 vs 2.7 points; one hospital) |
+
 ## `latex/` (English, `\cite` + BibTeX)
 
 | Where | Statement | Expected |

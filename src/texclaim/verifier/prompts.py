@@ -66,8 +66,10 @@ Use CONTRADICTED when the manuscript's own results state something different.
 9. Statements that are common background, definitions or plans need no support: answer \
 UNCHECKABLE with reason OTHER and say so briefly.
 10. A measurement or observation reported in the Results/Experiments section is primary \
-evidence. Answer SUPPORTED if a table or another passage agrees with it, CONTRADICTED if one \
-disagrees, and otherwise UNCHECKABLE with reason OTHER. Never answer PARTIALLY_SUPPORTED or \
+evidence. Answer SUPPORTED if a table or another result agrees with it, CONTRADICTED only if a \
+table, figure caption or another result disagrees, and otherwise UNCHECKABLE with reason OTHER. \
+The abstract, introduction and conclusions never contradict a measurement: when they disagree \
+with it, they are the ones in error. Never answer PARTIALLY_SUPPORTED or \
 NOT_FOUND just because a detail of it (a baseline's name, a setting) is not repeated \
 elsewhere. Use NOT_FOUND for interpretations, generalisations and conclusions that no result \
 backs.

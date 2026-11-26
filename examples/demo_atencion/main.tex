@@ -1,0 +1,61 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{booktabs}
+\title{Atención eficiente para clasificar documentos clínicos largos}
+\author{Grupo de Ejemplo}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Proponemos LongClin, un clasificador basado en Transformers para notas clínicas largas.
+En el conjunto de evaluación, LongClin obtiene un F1 de 84,2, es decir, 2,7 puntos más que el mejor modelo de referencia.
+Además, reduce el uso de memoria durante el entrenamiento.
+\end{abstract}
+
+\section{Introducción}
+El Transformer prescinde por completo de la recurrencia y de las convoluciones, y se basa únicamente en mecanismos de atención \cite{vaswani2017}.
+En la tarea de traducción inglés-alemán de WMT 2014 alcanzó 28,4 BLEU \cite{vaswani2017}.
+BERT introdujo el preentrenamiento bidireccional profundo y su versión grande tiene 340 millones de parámetros \cite{devlin2019}.
+Más tarde, RoBERTa mejoró a BERT entrenando por más tiempo y añadiendo la tarea de predicción de la siguiente oración \cite{liu2019}.
+GPT-3 escaló esta idea hasta 17.500 millones de parámetros y mostró un fuerte aprendizaje con pocos ejemplos \cite{brown2020}.
+
+\section{Trabajos relacionados}
+La atención completa tiene un costo cuadrático con la longitud de la secuencia, lo que limita su uso en documentos largos \cite{beltagy2020}.
+Longformer combina atención local con atención global, escala de forma lineal y elimina por completo la necesidad de truncar documentos de cualquier longitud \cite{beltagy2020}.
+El preentrenamiento bidireccional con modelado de lenguaje enmascarado fue propuesto originalmente por \cite{vaswani2017}.
+La normalización de capa reduce el tiempo de entrenamiento y, a diferencia de la normalización por lotes, no depende del tamaño del lote \cite{ba2016}.
+Estudios recientes en notas clínicas confirman que los modelos de dominio general fallan en todos los hospitales evaluados \cite{gomez2023}.
+
+\section{Método}
+LongClin parte de un codificador tipo Longformer de 12 capas y añade normalización de capa antes de cada subcapa.
+Entrenamos con secuencias de hasta 4.096 tokens y un tamaño de lote de 16.
+
+\section{Resultados}
+La Tabla~\ref{tab:res} resume los resultados en el conjunto de evaluación.
+LongClin obtiene un F1 de 84,2, frente a 81,5 del mejor modelo de referencia.
+El uso máximo de memoria es de 11,2 GB para LongClin y de 14,0 GB para el modelo de referencia.
+En las notas de otro hospital, no vistas durante el entrenamiento, el F1 baja a 76,0 para LongClin y a 75,4 para el modelo de referencia.
+
+\begin{table}[h]
+\centering
+\caption{F1 y memoria en el conjunto de evaluación.}
+\label{tab:res}
+\begin{tabular}{lcc}
+\toprule
+Modelo & F1 & Memoria (GB) \\
+\midrule
+Referencia & 81,5 & 14,0 \\
+LongClin & 84,2 & 11,2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusiones}
+LongClin mejora el F1 en más de 5 puntos respecto al mejor modelo de referencia.
+Además, reduce el uso de memoria a la mitad, lo que permite entrenarlo en una sola GPU modesta.
+Las mejoras se mantienen igual en hospitales no vistos, por lo que LongClin generaliza a cualquier institución.
+
+\bibliographystyle{plain}
+\bibliography{refs}
+\end{document}
