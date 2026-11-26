@@ -25,5 +25,5 @@
 - [x] Phase 14: React web app (EN/ES, light/dark), embedded PDF viewer with quote highlighting
 - [x] Phase 14b: knowledge graph (entities, networkx, Sigma.js view, MCP server `texclaim mcp`)
 - [x] Phase 15: examples (LaTeX, Spanish Markdown, Word) with expected findings
-- [ ] Phase 16: Playwright suite (`make e2e`, done) and blind-agent test loop (in progress)
-- [ ] Phase 17: live pass on all examples, docs
+- [x] Phase 16: Playwright suite (`make e2e`, 8 tests) and blind-agent loop: 5 rounds by fresh agents that never saw the code; every blocker and major issue fixed (Word re-check, unsaved settings, overflow, PNG export, localization, verdict consistency, data-loss confirmation)
+- [x] Phase 17: live pass on all three examples (`TEXCLAIM_LIVE_TESTS=1 pytest -m live -k examples`), ~$0.06 per pass with `anthropic/claude-haiku-5-5`; README and docs updated
