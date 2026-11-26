@@ -98,7 +98,7 @@ def build_report(
         quotes = []
         for q in json.loads(r["evidence_json"] or "[]"):
             hint = None
-            if r["text_sha256"]:
+            if r["text_sha256"] and r["bib_key"] != "@self":  # @self pages are sections
                 h = conn.execute(
                     "SELECT section_hint FROM chunks WHERE text_sha256=? AND char_start<=?"
                     " AND char_end>? ORDER BY char_start DESC LIMIT 1",

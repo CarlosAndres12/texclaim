@@ -101,10 +101,13 @@ def _candidates(paper: Path, exts: set[str]) -> list[Path]:
 
     found = []
     for dirpath, dirnames, filenames in os.walk(paper):
-        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS and not d.startswith("."))
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if d not in SKIP_DIRS and not d.startswith(".") and d != "sources_export"
+        )  # fmt: skip
         for f in sorted(filenames):
             p = Path(dirpath) / f
-            if p.suffix.lower() in exts and not f.startswith(("~$", ".")):
+            if p.suffix.lower() in exts and not f.startswith(("~$", ".", "texclaim_report")):
                 if p.stem.lower() not in SKIP_NAMES:
                     found.append(p)
     return found
@@ -191,6 +194,19 @@ def _paragraphs(md: str) -> list[str]:
     return [b for b in re.split(r"\n[ \t]*\n", md) if b.strip()]
 
 
+_H1 = re.compile(r"^#(?!#)\s+\S", re.M)
+_H2 = re.compile(r"^##(?!#)\s+\S", re.M)
+
+
+def _title_shift(md: str) -> list[str]:
+    """One level-1 heading used as the title above level-2 sections (typical of Word files)."""
+    body = _FRONT.sub("", md)
+    body = re.sub(r"^```.*?^```", "", body, flags=re.S | re.M)
+    if len(_H1.findall(body)) == 1 and _H2.search(body):
+        return ["--shift-heading-level-by=-1"]
+    return []
+
+
 def prepare(paper: Path, main: str | None) -> Prepared:
     paper = paper.resolve()
     kind, doc = detect(paper, main)
@@ -217,10 +233,11 @@ def prepare(paper: Path, main: str | None) -> Prepared:
         bib_paths.append("references-list.bib")
     units = _paragraphs(md) if kind == "docx" else md.splitlines()
 
+    shift = _title_shift(md)
     template = shadow / "template.latex"
     template.write_text(TEMPLATE, encoding="utf-8")
     latex = _run(["-f", "markdown", "-t", "latex", "--biblatex", "--wrap=preserve",
-                  "--template", str(template)], stdin=md, cwd=doc.parent)  # fmt: skip
+                  "--template", str(template), *shift], stdin=md, cwd=doc.parent)  # fmt: skip
     embedded = _run(["-f", "markdown", "-s", "-t", "bibtex"], stdin=md, cwd=doc.parent)
     if embedded.strip():
         (shadow / "embedded.bib").write_text(embedded, encoding="utf-8")

@@ -109,6 +109,10 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         except ProjectError as e:
             store.delete(p.id)
             raise HTTPException(400, str(e)) from e
+        problem = _manuscript_problem(p.path)
+        if problem:
+            store.delete(p.id)
+            raise HTTPException(400, problem)
         if not name:
             p.name = _guess_name(stored) or p.name
             store.save(p)
@@ -118,7 +122,12 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
     def open_local(body: Annotated[dict, Body()]) -> dict:
         path = Path(str(body.get("path", ""))).expanduser()
         if not path.is_absolute() or not path.is_dir():
-            raise HTTPException(400, "give the absolute path of an existing folder")
+            raise HTTPException(
+                400, "Enter the full path of an existing folder, for example /home/me/paper."
+            )
+        problem = _manuscript_problem(path)
+        if problem:
+            raise HTTPException(400, problem)
         return store.create(body.get("name") or path.name, folder=path).to_json()
 
     @app.get("/api/projects/{pid}")
@@ -443,6 +452,37 @@ async def _store_uploads(folder: Path, files: list[UploadFile]) -> list[str]:
     return stored
 
 
+NO_MANUSCRIPT = (
+    "No manuscript found. Upload a LaTeX file with \\documentclass (plus its .bib), "
+    "a Markdown (.md) file or a Word (.docx) file."
+)
+
+
+def _manuscript_problem(folder: Path) -> str | None:
+    from texclaim import formats
+    from texclaim.config import ConfigError
+    from texclaim.parser.root_finder import find_root
+
+    try:
+        kind, doc = formats.detect(folder, None)
+        if kind == "latex":
+            find_root(folder, None)
+        elif doc is None:
+            return NO_MANUSCRIPT
+    except ConfigError as e:
+        msg = str(e)
+        if "no root .tex" in msg:
+            return NO_MANUSCRIPT
+        if "several candidate" in msg:
+            return (
+                "Several possible main files: "
+                + msg.split(":", 1)[-1].strip()
+                + ". Upload one manuscript per project, or set the main file in Settings."
+            )
+        return msg
+    return None
+
+
 def _guess_name(stored: list[str]) -> str | None:
     for ext in (".tex", ".md", ".docx"):
         for s in stored:
@@ -479,7 +519,16 @@ def _summary(r: dict) -> dict:
     return {
         "verdicts": dict(verdicts),
         "internal": dict(internal),
-        "findings": sum(1 for f in r["findings"] if not f.get("suppressed")),
+        "findings": sum(
+            1 for f in r["findings"] if f.get("kind") == "unit" and not f.get("suppressed")
+        ),
+        "finding_verdicts": dict(
+            Counter(
+                f["verdict"]
+                for f in r["findings"]
+                if f.get("kind") == "unit" and not f.get("suppressed")
+            )
+        ),
         "units": len(r["units"]),
         "claims": run["counts"]["claims"],
         "cost": run["llm_cost_usd"],

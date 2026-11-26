@@ -155,8 +155,7 @@ def test_full_check_flow(server, page: Page):
     page.get_by_role("option", name="demo", exact=True).click()
     page.get_by_test_id("scope-two").click()
     page.get_by_role("switch", name="Offline (do not download sources)").click()
-    page.get_by_test_id("save-settings").click()
-    expect(page.get_by_test_id("save-settings")).to_have_text("Saved")
+    expect(page.get_by_test_id("save-settings")).to_have_text("Saved")  # auto-saved
 
     page.get_by_test_id("start-run").click()
     expect(page.get_by_test_id("run-state")).to_have_attribute("data-state", "done", timeout=60_000)
@@ -231,3 +230,34 @@ def test_word_project_outline(server, page: Page):
 def test_not_found_page(server, page: Page):
     page.goto(server + "/nowhere?lang=en")
     expect(page.get_by_text("Page not found")).to_be_visible()
+    page.goto(server + "/projects/doesnotexist?lang=en")
+    expect(page.get_by_text("Page not found")).to_be_visible()
+
+
+def test_unsaved_settings_apply_to_the_run(server, page: Page):
+    pid = _create_latex_project(server)
+    page.goto(f"{server}/projects/{pid}/settings?lang=en")
+    page.get_by_role("switch", name="Offline (do not download sources)").click()
+    page.get_by_role("combobox", name="Model").click()
+    page.get_by_role("option", name="demo", exact=True).click()
+    page.get_by_test_id("start-run").click()  # immediately, before the auto-save delay
+    expect(page.get_by_test_id("run-log")).to_contain_text("model demo", timeout=20_000)
+
+
+def test_no_horizontal_overflow(server, page: Page):
+    pid = _create_latex_project(server)
+    import httpx
+
+    httpx.put(f"{server}/api/projects/{pid}/settings", json={"model": "demo", "offline": True})
+    httpx.post(f"{server}/api/projects/{pid}/runs", json={})
+    for _ in range(100):
+        if httpx.get(f"{server}/api/projects/{pid}/runs/current").json()["state"] != "running":
+            break
+        time.sleep(0.2)
+    for width in (1440, 390):
+        page.set_viewport_size({"width": width, "height": 900})
+        for tab in ("", "run", "findings", "document", "sources", "graph", "settings"):
+            page.goto(f"{server}/projects/{pid}/{tab}?lang=en")
+            page.wait_for_timeout(700)
+            sw = page.evaluate("document.documentElement.scrollWidth")
+            assert sw <= width + 1, f"{tab or 'overview'} at {width}px is {sw}px wide"

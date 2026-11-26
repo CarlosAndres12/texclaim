@@ -234,3 +234,37 @@ def test_extractor_records_prev_and_paragraph(tmp_path):
     c = parse_manuscript(tmp_path).claims[0]
     assert c.prev_norm == "First point here."
     assert c.para_norm.startswith("First point here. Second point") and "Third" in c.para_norm
+
+
+def test_report_files_never_become_the_manuscript(tmp_path):
+    (tmp_path / "paper.docx").write_bytes(b"PK")
+    (tmp_path / "texclaim_report.md").write_text("# report")
+    (tmp_path / "sources_export").mkdir()
+    (tmp_path / "sources_export" / "x.md").write_text("x")
+    kind, doc = formats.detect(tmp_path, None)
+    assert kind == "docx" and doc.name == "paper.docx"
+
+
+@needs_pandoc
+def test_docx_title_heading_is_shifted(tmp_path):
+    src = tmp_path / "src.md"
+    src.write_text(
+        "# My Title\n\n## Introduction\n\nTransformers are good [@a].\n\n"
+        "## Results\n\nOur model reaches 85% accuracy on the benchmark test set today.\n"
+    )
+    paper = tmp_path / "paper"
+    paper.mkdir()
+    subprocess.run(["pandoc", str(src), "-o", str(paper / "paper.docx")], check=True)
+    (paper / "refs.bib").write_text("@article{a, title={A}, year={2017}}")
+    prep = formats.prepare(paper, None)
+    parsed = parse_manuscript(paper, prep.main, internal=True)
+    tops = {c.section_path.split(" > ")[0] for c in parsed.claims}
+    assert tops == {"Introduction", "Results"}
+
+
+def test_fix_syntax_follows_format():
+    from texclaim.verifier.prompts import fix_syntax
+
+    assert "[@key]" in fix_syntax("paper.md")
+    assert "Word" in fix_syntax("paper.docx")
+    assert "LaTeX" in fix_syntax("sec/intro.tex")

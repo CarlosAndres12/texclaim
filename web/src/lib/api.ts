@@ -29,6 +29,7 @@ export interface WebSettings {
 
 export interface Summary {
   verdicts: Partial<Record<Verdict, number>>;
+  finding_verdicts?: Partial<Record<Verdict, number>>;
   internal: Partial<Record<Verdict, number>>;
   findings: number;
   units: number;

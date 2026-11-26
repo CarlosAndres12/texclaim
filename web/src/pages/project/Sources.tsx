@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { BookMarked, Download, ExternalLink, Eye, FileArchive, Globe, Search, Upload } from "lucide-react";
 import { api, urls, type Project, type SourceRow, type Verdict } from "@/lib/api";
 import { cn, VERDICTS } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,12 +27,12 @@ function UploadButton({ project, row }: { project: Project; row: SourceRow }) {
   const up = useMutation({
     mutationFn: (f: File) => api.uploadSourcePdf(project.id, row.bib_key, f),
     onSuccess: () => { toast.success(t("sources.uploaded")); qc.invalidateQueries({ queryKey: ["sources", project.id] }); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e, t)),
   });
   return (
     <>
-      <Tooltip content={t("sources.uploadPdf")}>
-        <Button variant="ghost" size="icon-sm" onClick={() => ref.current?.click()} aria-label={`${t("sources.uploadPdf")} ${row.bib_key}`} disabled={up.isPending}><Upload /></Button>
+      <Tooltip content={row.file_kind === "pdf" ? t("sources.replacePdf") : t("sources.uploadPdf")}>
+        <Button variant="ghost" size="icon-sm" onClick={() => ref.current?.click()} aria-label={`${t("sources.uploadPdf")} ${row.bib_key}`} disabled={up.isPending} data-testid={`upload-${row.bib_key}`}><Upload /></Button>
       </Tooltip>
       <input ref={ref} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) up.mutate(f); e.target.value = ""; }} />
     </>
@@ -112,7 +113,7 @@ export default function SourcesTab({ project }: { project: Project }) {
                           </Tooltip>
                         </>
                       )}
-                      {r.file_kind !== "pdf" && <UploadButton project={project} row={r} />}
+                      <UploadButton project={project} row={r} />
                       {(r.landing_page || r.doi_url) && (
                         <Tooltip content={r.landing_page ? t("sources.landing") : t("sources.doi")}>
                           <Button variant="ghost" size="icon-sm" asChild><a href={r.landing_page || r.doi_url!} target="_blank" rel="noreferrer" aria-label={t("sources.landing")}>{r.landing_page ? <Globe /> : <ExternalLink />}</a></Button>

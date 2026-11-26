@@ -1,12 +1,15 @@
 import * as React from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowLeft, BookMarked, FileSearch, FileText, LayoutDashboard, Loader2, Network, Pencil, Play, Settings2, Square, Zap,
 } from "lucide-react";
-import { api, urls, type RunEvent } from "@/lib/api";
+import { api, ApiError, urls, type RunEvent } from "@/lib/api";
+import { friendlyError } from "@/lib/errors";
+import { flushSaves } from "@/lib/pending";
+import NotFound from "./NotFound";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/misc";
@@ -58,7 +61,7 @@ function useRunEvents(pid: string): RunState {
         qc.invalidateQueries({ queryKey: ["projects"] });
       }
       if (e.type === "done") toast.success(t("run.done"));
-      if (e.type === "error") toast.error(String(e.message ?? t("run.failed")));
+      if (e.type === "error") toast.error(friendlyError(e.message ?? t("run.failed"), t));
     };
     const end = () => { setRunning(false); es.close(); };
     es.addEventListener("end", end);
@@ -78,9 +81,12 @@ function useRunEvents(pid: string): RunState {
   }, [pid, follow]);
 
   const startM = useMutation({
-    mutationFn: (opts: { force?: boolean; dry_run?: boolean }) => api.startRun(pid, opts),
+    mutationFn: async (opts: { force?: boolean; dry_run?: boolean }) => {
+      await flushSaves(); // unsaved settings are saved before the run starts
+      return api.startRun(pid, opts);
+    },
     onSuccess: () => follow(),
-    onError: (e: Error) => toast.error(e.message.includes("already") ? t("run.alreadyRunning") : e.message),
+    onError: (e: Error) => toast.error(friendlyError(e, t)),
   });
   const cancelM = useMutation({ mutationFn: () => api.cancelRun(pid) });
   return {
@@ -128,7 +134,9 @@ export default function ProjectPage() {
   const active: TabName = (TABS as readonly string[]).includes(tab) ? (tab as TabName) : "overview";
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-80" /><Skeleton className="h-10 w-full" /><Skeleton className="h-96" /></div>;
+  if (error instanceof ApiError && (error.status === 404 || error.status === 400)) return <NotFound />;
   if (error || !project) return <ErrorState error={error ?? "not found"} onRetry={() => refetch()} />;
+  if (tab !== "overview" && !(TABS as readonly string[]).includes(tab)) return <Navigate to={`/projects/${id}`} replace />;
 
   const icons: Record<TabName, React.ReactNode> = {
     overview: <LayoutDashboard />, run: <Zap />, findings: <FileSearch />, document: <FileText />,
@@ -141,6 +149,7 @@ export default function ProjectPage() {
           <div className="flex min-w-0 items-center gap-2">
             <Button variant="ghost" size="icon" asChild><Link to="/" aria-label={t("app.back")}><ArrowLeft /></Link></Button>
             <Title pid={id} name={project.name} />
+            {project.external && <span className="hidden truncate rounded-md bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground md:inline" title={project.folder}>{project.folder.split("/").slice(-2).join("/")}</span>}
           </div>
           <div className="flex items-center gap-2">
             {run.running ? (

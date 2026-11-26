@@ -1,10 +1,59 @@
 # texclaim
 
-Checks that each cited statement in a LaTeX manuscript is supported by the work it cites, and on
-later runs re-checks only what changed.
+Checks that each cited statement in a LaTeX, Markdown or Word manuscript is supported by the work
+it cites, checks uncited statements, the abstract and the conclusions against the manuscript's own
+results, and on later runs re-checks only what changed. Use it from the command line or from a web
+app in English or Spanish.
 
 ```text
-texclaim check path/to/paper
+texclaim check path/to/paper        # command line
+texclaim serve --open               # web app at http://127.0.0.1:8765
+```
+
+## Web app
+
+`texclaim serve` starts a local web app (no login, bound to 127.0.0.1). Create a project by
+uploading a folder, a `.zip` or single files (or by opening a local folder in place), pick the
+model, claim length and which sections to check, then run. Results update live. Then you can:
+
+- **Overview**: verdict breakdown for citations and for internal claims, source coverage, cost,
+  and downloads (HTML, Word, Markdown, JSON reports; all source files as a `.zip`).
+- **Findings**: filter by verdict, kind (citations, internal claims, abstract and conclusions) and
+  text. Each finding shows the explanation and suggested fix, and the cited PDF opens next to it at
+  the quoted page with the quote highlighted (keys: <kbd>j</kbd>/<kbd>k</kbd>).
+- **Document**: the manuscript with each claim coloured by its verdict.
+- **Sources**: each cited work's status. View or download its PDF (or the extracted text or
+  abstract), and upload the PDF of a closed-access work.
+- **Graph**: a knowledge graph of sections, claims, cited works and the entities they mention
+  (methods, datasets, metrics, results), coloured by verdict, with search, layouts and PNG/JSON export.
+
+The UI language follows the browser and can be switched (EN/ES); there are light and dark themes.
+
+## Formats
+
+| Format | Citations | Bibliography |
+| --- | --- | --- |
+| LaTeX | `\cite`, natbib, biblatex | `.bib` |
+| Markdown | pandoc `[@key]`, `@key`; or `[1]`, `[2-4]`, `(He et al., 2016)` | YAML `bibliography:`, any `.bib`, or a final "References" list |
+| Word (`.docx`) | Zotero/Mendeley/EndNote fields, typed `[@key]`, numeric or author-year | embedded citation data, a `.bib`, or the "References" list |
+
+Markdown and Word need [pandoc](https://pandoc.org). Locations in reports are lines for Markdown
+and paragraphs (`¶`) for Word. See `examples/` for one manuscript in each format.
+
+## Claim length and internal checks
+
+`claim_scope` sets how much text each citation is checked against: `auto` (default; the model
+decides from the sentence and its neighbours), `sentence`, `two` (the citing sentence and the one
+before it) or `paragraph`.
+
+Internal checks are on by default. Uncited statements are screened for check-worthiness, and the
+abstract and conclusions are always checked. Each is then compared with the rest of the manuscript.
+A statement backed only by its own restatement in the abstract or conclusions counts as unsupported.
+Limit the checks to some sections with `internal.sections` (or the section picker in the web app).
+
+```bash
+texclaim check paper --claim-scope two --internal-section Results --internal-section conclusion
+texclaim check paper --no-internal
 ```
 
 texclaim finds the root `.tex` file, walks its includes, extracts every sentence, caption,
@@ -31,10 +80,13 @@ On Windows run `pipx install --editable . --force` directly.
 
 A model is required; there is no default. Any LiteLLM model string works:
 
+Copy `.env.example` to `.env` (git-ignored) and fill it in, or export the variables:
+
 ```bash
-export TEXCLAIM_MODEL="<provider>/<model>"
+export TEXCLAIM_MODEL="<provider>/<model>"      # or "demo" for fake verdicts without a key
 export OPENAI_API_KEY=...        # or ANTHROPIC_API_KEY, GEMINI_API_KEY, ... (LiteLLM reads these)
 export OPENALEX_API_KEY=...      # optional: free key, higher limits, full-text downloads
+export ASTA_API_KEY=...          # optional: Asta / Semantic Scholar, a further source of PDFs and abstracts
 ```
 
 `texclaim init <paper>` creates `<paper>/.texclaim/config.toml` and offers to request a free
@@ -65,6 +117,11 @@ max_llm_usd_per_run = 5.00
 | `texclaim clean` | Delete the paper's state; config and suppressions stay |
 | `texclaim cache info\|prune\|path` | Inspect or shrink the global cache |
 | `texclaim doctor` | Check the install, FTS5, keys (never printed), OpenAlex, model support |
+| `texclaim serve` | The web app (`--host`, `--port`, `--open`) |
+| `texclaim export --format html\|docx` | Convert the Markdown report |
+| `texclaim sources export` | Copy each cited work's PDF (or text) into `sources_export/` |
+| `texclaim graph [--llm]` | Build the knowledge graph (`.texclaim/graph.json`) |
+| `texclaim mcp [FOLDER]` | Serve the knowledge graph to agents over MCP (stdio) |
 
 Closed-access papers: put the PDF at `papers/<bibkey>.pdf` (a Zotero storage folder listed in
 `pdf_dirs` also works). `texclaim fetch` prints the exact paths still missing.
@@ -84,6 +141,19 @@ nothing unless you pass `--recheck stale-model`.
 
 Suppress inline with `% texclaim: ignore[bibkey] reason` on the claim's line or the line above.
 
+## Knowledge graph and agents
+
+Every check also builds a knowledge graph. Nodes are sections, claims, cited works and entities;
+edges are citations (with their verdicts), evidence links between internal claims and the sections
+that back them, and mentions. It is stored in `.texclaim/graph.json`. Entities are extracted by the
+model when one is configured, otherwise by heuristics, and are cached per claim. As CodeGraph does
+for code, `texclaim mcp` exposes the graph to agents with the tools `graph_search`,
+`graph_neighbors`, `claim_detail` and `findings`:
+
+```bash
+claude mcp add texclaim -- texclaim mcp /path/to/paper
+```
+
 ## Confidentiality
 
 texclaim sends manuscript sentences and source passages to the model provider you configure. For
@@ -102,7 +172,12 @@ texclaim never bypasses access controls.
 ```bash
 uv venv && uv pip install -e '.[dev]'
 make test lint
+make web                                # rebuild the React UI into src/texclaim/web/static
+make e2e                                # browser tests (Playwright, Chromium)
 TEXCLAIM_LIVE_TESTS=1 pytest -m live    # real network and LLM calls, opt-in
 ```
+
+The web UI lives in `web/` (Vite, React, TypeScript, Tailwind, Radix). `npm run dev` there proxies
+`/api` to a running `texclaim serve`.
 
 See `PROGRESS.md` for build status and `DECISIONS.md` for design choices made along the way.

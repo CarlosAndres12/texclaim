@@ -2,7 +2,9 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileText, KeyRound, Loader2, Save, Upload } from "lucide-react";
+import { Check, FileText, KeyRound, Loader2, Upload } from "lucide-react";
+import { registerFlusher, trackSave } from "@/lib/pending";
+import { friendlyError } from "@/lib/errors";
 import { api, type Project, type WebSettings } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,14 +78,34 @@ export default function SettingsTab({ project }: { project: Project }) {
   const { data: outline } = useOutline(project.id);
   const [s, setS] = React.useState<WebSettings>(project.settings);
   const [custom, setCustom] = React.useState(false);
-  React.useEffect(() => setS(project.settings), [project.settings]);
-  const dirty = JSON.stringify(s) !== JSON.stringify(project.settings);
+  const [saved, setSaved] = React.useState<WebSettings>(project.settings);
+  const latest = React.useRef(s);
+  latest.current = s;
+  React.useEffect(() => { setS(project.settings); setSaved(project.settings); }, [project.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dirty = JSON.stringify(s) !== JSON.stringify(saved);
 
   const save = useMutation({
-    mutationFn: () => api.saveSettings(project.id, s),
-    onSuccess: () => { toast.success(t("settings.savedToast")); qc.invalidateQueries({ queryKey: ["project", project.id] }); qc.invalidateQueries({ queryKey: ["outline", project.id] }); },
-    onError: (e: Error) => toast.error(e.message),
+    mutationFn: (value: WebSettings) => trackSave(api.saveSettings(project.id, value)),
+    onSuccess: (value) => {
+      setSaved(value);
+      qc.setQueryData(["project", project.id], (p: Project | undefined) => (p ? { ...p, settings: value } : p));
+      qc.invalidateQueries({ queryKey: ["outline", project.id] });
+    },
+    onError: (e: Error) => toast.error(friendlyError(e, t)),
   });
+
+  // Auto-save shortly after each change; a run started meanwhile waits for it (flushSaves)
+  React.useEffect(() => {
+    if (!dirty) return;
+    const id = setTimeout(() => save.mutate(latest.current), 500);
+    return () => clearTimeout(id);
+  }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    registerFlusher(() =>
+      JSON.stringify(latest.current) !== JSON.stringify(saved) ? save.mutateAsync(latest.current) : undefined,
+    );
+    return () => registerFlusher(null);
+  }, [saved]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = <K extends keyof WebSettings>(k: K, v: WebSettings[K]) => setS((p) => ({ ...p, [k]: v }));
 
   const models = health?.suggested_models ?? ["demo"];
@@ -102,9 +124,9 @@ export default function SettingsTab({ project }: { project: Project }) {
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle>{t("settings.title")}</CardTitle>
-          <Button onClick={() => save.mutate()} disabled={!dirty || save.isPending} data-testid="save-settings">
-            {save.isPending ? <Loader2 className="animate-spin" /> : <Save />}{dirty ? t("app.save") : t("app.saved")}
-          </Button>
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground" data-testid="save-settings" aria-live="polite">
+            {save.isPending || dirty ? <><Loader2 className="size-4 animate-spin" />{t("settings.saving")}</> : <><Check className="size-4 text-supported" />{t("app.saved")}</>}
+          </span>
         </CardHeader>
         <CardContent className="divide-y">
           <Row label={t("settings.model")} hint={t("settings.modelHint")} htmlFor="model">

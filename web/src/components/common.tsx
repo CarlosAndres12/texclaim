@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle, FolderUp, Upload, X } from "lucide-react";
 import type { Verdict } from "@/lib/api";
 import { cn, VERDICT_COLOR, VERDICTS } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/misc";
 
@@ -77,7 +78,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
     <EmptyState
       icon={<AlertTriangle />}
       title={t("app.error")}
-      body={error instanceof Error ? error.message : String(error)}
+      body={friendlyError(error, t)}
       action={onRetry && <Button variant="outline" onClick={onRetry}>{t("app.retry")}</Button>}
     />
   );

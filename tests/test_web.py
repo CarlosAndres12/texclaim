@@ -225,3 +225,26 @@ def test_mcp_tools(client, tmp_path):
     )
     assert err["result"]["isError"]
     assert handle(tools, {"method": "notifications/initialized"}) is None
+
+
+def test_upload_without_manuscript_is_rejected(client):
+    r = client.post("/api/projects", files={"files": ("notes.txt", b"hello", "text/plain")})
+    assert r.status_code == 400 and "No manuscript" in r.json()["detail"]
+    assert client.get("/api/projects").json() == []
+
+
+def test_word_project_survives_second_run(client):
+    from pathlib import Path
+
+    docx = Path(__file__).parents[1] / "examples" / "word" / "paper.docx"
+    pid = client.post(
+        "/api/projects",
+        files={"files": ("paper.docx", docx.read_bytes(), "application/octet-stream")},
+    ).json()["id"]
+    client.put(f"/api/projects/{pid}/settings", json={"model": "demo", "offline": True})
+    for _ in range(2):
+        client.post(f"/api/projects/{pid}/runs", json={})
+        assert _wait(client, pid)["state"] == "done"
+    out = client.get(f"/api/projects/{pid}/outline").json()
+    assert out["main"] == "paper.docx"
+    assert {s["title"] for s in out["sections"]} >= {"Introduction", "Results", "Conclusions"}

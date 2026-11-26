@@ -6,6 +6,7 @@ import {
 import type { Project, Verdict } from "@/lib/api";
 import { urls } from "@/lib/api";
 import { cleanClaim, formatCost, formatDate, VERDICT_COLOR, VERDICTS } from "@/lib/utils";
+import { translateNotice } from "@/lib/errors";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ function Structure({ pid }: { pid: string }) {
       <ul className="space-y-1.5">
         {data.sections.map((s) => (
           <li key={s.title} className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-3 text-sm">
-            <span className="truncate">{s.title}{s.role && <span className="ml-1.5 text-xs text-muted-foreground">({t(`findings.role.${s.role}`)})</span>}</span>
+            <span className="truncate">{s.title}{s.role && !s.title.toLowerCase().startsWith(t(`findings.role.${s.role}`).toLowerCase().slice(0, 6)) && !s.title.toLowerCase().startsWith(s.role.slice(0, 6)) && <span className="ml-1.5 text-xs text-muted-foreground">({t(`findings.role.${s.role}`)})</span>}</span>
             <div className="flex h-2 overflow-hidden rounded-full bg-muted" title={`${s.cited} / ${s.internal}`}>
               <div className="bg-primary" style={{ width: `${(s.cited / max) * 100}%` }} />
               <div className="bg-primary/35" style={{ width: `${(s.internal / max) * 100}%` }} />
@@ -63,7 +64,7 @@ export default function OverviewTab({ project }: { project: Project }) {
   if (isLoading) return <div className="grid gap-4 md:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28" />)}</div>;
   if (!report || isNotFound(error) || !s) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <EmptyState icon={<ListChecks />} title={t("project.notChecked")} body={t("project.startFirst")}
           action={<div className="flex gap-2"><Button onClick={() => run.start()} disabled={run.running}><Play />{t("project.checkNow")}</Button><Button variant="outline" asChild><Link to={`/projects/${project.id}/settings`}>{t("project.settings")}</Link></Button></div>} />
         <Card><CardHeader><CardTitle>{t("overview.structure")}</CardTitle></CardHeader><CardContent><Structure pid={project.id} /></CardContent></Card>
@@ -92,15 +93,15 @@ export default function OverviewTab({ project }: { project: Project }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label={t("overview.claims")} value={report.run.counts.claims} icon={<Quote />} hint={`${report.units.length} ${t("overview.units").toLowerCase()}`} />
         <StatCard label={t("overview.findings")} value={s.findings} icon={<AlertTriangle />} accent={s.findings ? VERDICT_COLOR.CONTRADICTED : undefined}
-          hint={VERDICTS.filter((v) => v !== "SUPPORTED" && (s.verdicts[v] ?? 0) > 0).map((v) => `${s.verdicts[v]} ${t(`verdict.${v}`).toLowerCase()}`).join(" · ") || "—"} />
+          hint={VERDICTS.filter((v) => (s.finding_verdicts?.[v] ?? 0) > 0).map((v) => t(`verdictCount.${v}`, { count: s.finding_verdicts![v] })).join(" · ") || "—"} />
         <StatCard label={t("overview.coverage")} value={`${Math.round((cov.full_text / covTotal) * 100)}%`} icon={<BookOpen />}
           hint={`${cov.full_text} ${t("overview.fullText").toLowerCase()} · ${cov.abstract_only} ${t("overview.abstractOnly").toLowerCase()} · ${cov.none} ${t("overview.noSource").toLowerCase()}`} />
         <StatCard label={t("overview.cost")} value={formatCost(report.run.llm_cost_usd)} icon={<CircleDollarSign />}
           hint={`${t("overview.model")}: ${report.run.models.join(", ") || "—"}`} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-        <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>{t("overview.verdicts")}</CardTitle>
@@ -169,7 +170,7 @@ export default function OverviewTab({ project }: { project: Project }) {
             <CardContent><Structure pid={project.id} /></CardContent>
           </Card>
           {report.run.notes.length > 0 && (
-            <Card><CardContent className="space-y-1 pt-5 text-xs text-muted-foreground">{report.run.notes.map((n, i) => <p key={i}>• {n}</p>)}</CardContent></Card>
+            <Card><CardContent className="space-y-1 pt-5 text-xs text-muted-foreground">{report.run.notes.map((n, i) => <p key={i}>• {translateNotice(n, t)}</p>)}</CardContent></Card>
           )}
         </div>
       </div>

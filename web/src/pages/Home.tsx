@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { FileText, Folder, FolderOpen, Loader2, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
 import { api, type Project } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +36,7 @@ function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
       setFiles([]); setName(""); setPath("");
       nav(`/projects/${p.id}/settings`);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e, t), { duration: 8000 }),
   });
 
   const canSubmit = tab === "upload" ? files.length > 0 : path.trim().startsWith("/") || /^[A-Za-z]:\\/.test(path.trim());
@@ -114,9 +115,9 @@ function ProjectCard({ p, onDelete }: { p: Project; onDelete: () => void }) {
           </div>
         </div>
       ) : (
-        <div className="h-[38px] rounded-lg border border-dashed" />
+        <p className="text-xs text-muted-foreground">{t("home.notCheckedHint")}</p>
       )}
-      {p.external && <p className="flex items-center gap-1 truncate font-mono text-[11px] text-muted-foreground"><Folder className="size-3" />{p.folder}</p>}
+      {p.external && <p className="flex items-center gap-1 truncate font-mono text-[11px] text-muted-foreground" title={p.folder}><Folder className="size-3 shrink-0" />…/{p.folder.split("/").slice(-2).join("/")}</p>}
     </div>
   );
 }
@@ -135,7 +136,7 @@ export default function HomePage() {
   const del = useMutation({
     mutationFn: (id: string) => api.deleteProject(id),
     onSuccess: () => { toast.success(t("home.deleted")); qc.invalidateQueries({ queryKey: ["projects"] }); setToDelete(null); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyError(e, t)),
   });
   const shown = (data ?? []).filter((p) => p.name.toLowerCase().includes(filter.toLowerCase()));
 

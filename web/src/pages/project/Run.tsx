@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowRight, CheckCircle2, Circle, Loader2, Play, RefreshCw, Square, Calculator } from "lucide-react";
 import { api, type Project, type RunEvent, type Verdict } from "@/lib/api";
 import { cleanClaim, cn, formatCost } from "@/lib/utils";
+import { friendlyError, translateNotice } from "@/lib/errors";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, Progress } from "@/components/ui/misc";
@@ -37,8 +38,8 @@ export default function RunTab({ project }: { project: Project }) {
   const title = { idle: t("run.idle"), running: t("run.running"), done: t("run.done"), failed: t("run.failed"), cancelled: t("run.cancelled") }[state];
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-      <div className="space-y-6">
+    <div className="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
+      <div className="min-w-0 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2" data-testid="run-state" data-state={state}>
@@ -60,7 +61,7 @@ export default function RunTab({ project }: { project: Project }) {
                 <p className="text-xs text-muted-foreground">{t("run.cost", { cost: formatCost(lastCost) })}</p>
               </div>
             )}
-            {err && <Alert variant="destructive"><AlertCircle /><p className="break-words">{String(err.message)}</p></Alert>}
+            {err && <Alert variant="destructive"><AlertCircle /><p className="break-words">{friendlyError(err.message, t)}</p></Alert>}
             {done && (
               <p className="rounded-lg bg-muted p-3 text-sm">
                 {t("run.summary", { verified: done.verified, reused: done.reused, errors: done.errors, cost: formatCost(Number(done.cost)) })}
@@ -99,32 +100,32 @@ export default function RunTab({ project }: { project: Project }) {
           </CardContent>
         </Card>
       </div>
-      <Card className="flex min-h-[420px] flex-col">
+      <Card className="flex min-h-[420px] min-w-0 flex-col">
         <CardHeader><CardTitle>{t("run.log")}</CardTitle></CardHeader>
         <CardContent className="min-h-0 flex-1">
           <ol ref={logRef} className="max-h-[560px] space-y-1 overflow-auto pr-1 scrollbar-thin" aria-live="polite" data-testid="run-log">
             {ev.map((e: RunEvent) => (
-              <li key={e.seq} className="flex items-start gap-3 rounded-md px-2 py-1.5 text-sm odd:bg-muted/40">
+              <li key={e.seq} className="flex min-w-0 items-start gap-3 rounded-md px-2 py-1.5 text-sm odd:bg-muted/40">
                 <span className="w-12 shrink-0 pt-0.5 text-[11px] text-muted-foreground tabular-nums">{startEv ? `+${Math.max(0, Math.round(e.t - startEv.t))}s` : ""}</span>
                 {e.type === "unit" ? (
                   <div className="flex min-w-0 flex-1 items-start gap-2">
                     <VerdictBadge verdict={e.verdict as Verdict} />
                     <span className="min-w-0 flex-1 truncate">{cleanClaim(String(e.text))}</span>
-                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{e.bib_key === "@self" ? t("findings.selfSource") : String(e.bib_key)}</span>
+                    <span className="hidden max-w-40 shrink-0 truncate font-mono text-[11px] text-muted-foreground sm:inline">{e.bib_key === "@self" ? t("findings.selfSource") : String(e.bib_key)}</span>
                   </div>
                 ) : e.type === "stage" ? (
                   <span className="font-medium">{t(`run.stage.${e.name}`, { defaultValue: String(e.name) })}</span>
                 ) : e.type === "notice" ? (
-                  <span className="text-muted-foreground">{String(e.message)}</span>
+                  <span className="text-muted-foreground">{translateNotice(String(e.message), t)}</span>
                 ) : e.type === "plan" ? (
                   <span className="text-muted-foreground">{t("run.queued", { queued: e.queued, reused: e.reused })}</span>
                 ) : e.type === "error" ? (
-                  <span className="text-destructive">{String(e.message)}</span>
+                  <span className="text-destructive">{friendlyError(e.message, t)}</span>
                 ) : e.type === "done" ? (
                   <span className="font-medium text-supported">{t("run.done")}</span>
-                ) : (
-                  <span className="text-muted-foreground">{e.type}</span>
-                )}
+                ) : e.type === "start" ? (
+                  <span className="text-muted-foreground">{e.dry_run ? t("run.startedDry") : t("run.started", { model: String(e.model ?? "—") })}</span>
+                ) : null}
               </li>
             ))}
           </ol>

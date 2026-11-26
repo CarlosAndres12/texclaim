@@ -18,7 +18,6 @@ import { PdfViewer } from "@/components/PdfViewer";
 import { isNotFound, useReport } from "./hooks";
 
 type Origin = "all" | "cited" | "internal" | "conclusions";
-const FLAGGED: Verdict[] = ["CONTRADICTED", "PARTIALLY_SUPPORTED", "NOT_FOUND"];
 
 function Field({ label, children, tone }: { label: string; children: React.ReactNode; tone?: string }) {
   return (
@@ -29,14 +28,16 @@ function Field({ label, children, tone }: { label: string; children: React.React
   );
 }
 
-function QuoteCard({ q, active, onShow, canShow }: { q: Quote; active: boolean; onShow: () => void; canShow: boolean }) {
+function QuoteCard({ q, active, onShow, canShow, self = false }: { q: Quote; active: boolean; onShow: () => void; canShow: boolean; self?: boolean }) {
   const { t } = useTranslation();
   return (
     <figure className={cn("rounded-lg border-l-4 bg-muted/40 p-3 transition-colors", active ? "border-l-partial bg-partial/10" : "border-l-primary/40")}>
       <blockquote className="text-sm italic leading-relaxed">“{q.text}”</blockquote>
       <figcaption className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        {q.page != null && <span>{t("findings.page", { page: q.page })}{q.page_label && String(q.page_label) !== String(q.page) ? ` (${t("findings.printed", { label: q.page_label })})` : ""}</span>}
-        {q.section && <span className="truncate">{q.section}</span>}
+        {self ? (q.page_label && <span>{q.page_label}</span>) : (<>
+          {q.page != null && <span>{t("findings.page", { page: q.page })}{q.page_label && String(q.page_label) !== String(q.page) ? ` (${t("findings.printed", { label: q.page_label })})` : ""}</span>}
+          {q.section && <span className="truncate">{q.section}</span>}
+        </>)}
         <span>{t("findings.match", { score: q.score })}</span>
         {canShow && <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onShow}><MapPin className="size-3" />{t("findings.showInPdf")}</Button>}
       </figcaption>
@@ -56,8 +57,8 @@ function Detail({ u, project, fileKind, index, total, onPrev, onNext }: {
   const copy = async (text: string) => { await navigator.clipboard.writeText(text); toast.success(t("findings.copied")); };
 
   return (
-    <div className="grid min-h-0 gap-4 2xl:grid-cols-2" data-testid="finding-detail">
-      <Card className="min-h-0 overflow-hidden">
+    <div className="grid min-h-0 min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" data-testid="finding-detail">
+      <Card className="min-h-0 min-w-0 overflow-hidden">
         <div className="flex items-center justify-between gap-2 border-b px-4 py-2.5">
           <div className="flex items-center gap-2">
             <VerdictBadge verdict={u.verdict} withHelp className="text-sm" />
@@ -93,15 +94,15 @@ function Detail({ u, project, fileKind, index, total, onPrev, onNext }: {
           <Field label={t("findings.evidence")}>
             {u.quotes.length ? (
               <div className="space-y-2">
-                {u.quotes.map((qq, i) => <QuoteCard key={i} q={qq} active={i === quoteIdx && hasPdf} canShow={hasPdf} onShow={() => setQuoteIdx(i)} />)}
+                {u.quotes.map((qq, i) => <QuoteCard key={i} q={qq} self={isSelf} active={i === quoteIdx && hasPdf} canShow={hasPdf} onShow={() => setQuoteIdx(i)} />)}
               </div>
             ) : <p className="text-muted-foreground">{t("findings.noQuotes")}</p>}
           </Field>
           <dl className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3 text-xs">
-            <div><dt className="text-muted-foreground">{t("findings.confidence")}</dt><dd className="font-medium">{u.confidence ?? "—"}</dd></div>
-            <div><dt className="text-muted-foreground">{t("findings.scope")}</dt><dd className="font-medium">{u.evidence_scope}</dd></div>
-            <div><dt className="text-muted-foreground">{t("findings.citationFunction")}</dt><dd className="font-medium">{u.citation_function ?? "—"}</dd></div>
-            <div><dt className="text-muted-foreground">{t("findings.reason")}</dt><dd className="font-medium">{u.reason_code}</dd></div>
+            <div><dt className="text-muted-foreground">{t("findings.confidence")}</dt><dd className="font-medium">{u.confidence ? t(`values.confidence.${u.confidence}`, { defaultValue: u.confidence }) : "—"}</dd></div>
+            <div><dt className="text-muted-foreground">{t("findings.scope")}</dt><dd className="font-medium">{t(`values.scope.${u.evidence_scope}`, { defaultValue: u.evidence_scope })}</dd></div>
+            {!isSelf && <div><dt className="text-muted-foreground">{t("findings.citationFunction")}</dt><dd className="font-medium">{u.citation_function ? t(`values.citationFunction.${u.citation_function}`, { defaultValue: u.citation_function }) : "—"}</dd></div>}
+            {u.reason_code !== "NONE" && <div><dt className="text-muted-foreground">{t("findings.reason")}</dt><dd className="font-medium">{t(`values.reason.${u.reason_code}`, { defaultValue: u.reason_code })}</dd></div>}
             <div className="col-span-2"><dt className="text-muted-foreground">{t("overview.model")}</dt><dd className="font-medium">{u.model ?? "—"}</dd></div>
           </dl>
           {!isSelf && fileKind && fileKind !== "none" && (
@@ -111,7 +112,7 @@ function Detail({ u, project, fileKind, index, total, onPrev, onNext }: {
           )}
         </CardContent>
       </Card>
-      <div className="min-h-[520px] 2xl:h-[calc(100vh-230px)]">
+      <div className="min-h-[520px] min-w-0 2xl:h-[calc(100vh-230px)]">
         {hasPdf ? (
           <PdfViewer url={urls.sourceFile(project.id, u.bib_key)} page={q?.page ?? 1} quote={q?.text} className="h-full min-h-[520px]" />
         ) : isSelf ? (
@@ -147,7 +148,7 @@ export default function FindingsTab({ project }: { project: Project }) {
     const order = (v: Verdict) => VERDICTS.indexOf(v);
     return report.units
       .filter((u) => !u.suppressed)
-      .filter((u) => !flaggedOnly || flaggedIds.has(u.id) || FLAGGED.includes(u.verdict))
+      .filter((u) => !flaggedOnly || flaggedIds.has(u.id))
       .filter((u) => !verdicts.size || verdicts.has(u.verdict))
       .filter((u) => origin === "all" || (origin === "cited" ? u.claim_origin !== "internal" : origin === "internal" ? u.claim_origin === "internal" && !u.role : u.claim_origin === "internal" && !!u.role))
       .filter((u) => !q || `${u.claim_text} ${u.bib_key} ${u.file} ${u.section ?? ""}`.toLowerCase().includes(q))
@@ -177,7 +178,7 @@ export default function FindingsTab({ project }: { project: Project }) {
   const toggle = (v: Verdict) => setVerdicts((s) => { const n = new Set(s); if (n.has(v)) n.delete(v); else n.add(v); return n; });
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(320px,400px)_1fr]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]">
       <Card className="flex min-h-0 flex-col lg:h-[calc(100vh-230px)]">
         <div className="space-y-3 border-b p-3">
           <div className="relative">

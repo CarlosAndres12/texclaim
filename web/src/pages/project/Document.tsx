@@ -70,7 +70,7 @@ export default function DocumentTab({ project }: { project: Project }) {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-3">
           {files.length > 1 && (
-            <div className="w-64"><Select ariaLabel={t("document.file")} value={file.path} onValueChange={(v) => setParams({ file: v })} options={files.map((f) => ({ value: f.path, label: f.path }))} /></div>
+            <div className="w-full sm:w-64"><Select ariaLabel={t("document.file")} value={file.path} onValueChange={(v) => setParams({ file: v })} options={files.map((f) => ({ value: f.path, label: f.path }))} /></div>
           )}
           <Label className="text-sm font-normal"><Switch checked={onlyFlagged} onCheckedChange={setOnlyFlagged} />{t("document.onlyFlagged")}</Label>
           <Button variant="outline" size="sm" onClick={jump} disabled={!flaggedLines.length}><ArrowDown />{t("document.jump")}</Button>
@@ -78,8 +78,8 @@ export default function DocumentTab({ project }: { project: Project }) {
         <VerdictLegend counts={fileCounts} />
       </div>
       <p className="text-xs text-muted-foreground">{t("document.legend")}</p>
-      <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
-        <Card className="overflow-hidden">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <Card className="min-w-0 overflow-hidden">
           <div className="border-b bg-muted/40 px-4 py-2 font-mono text-xs text-muted-foreground">{file.path}</div>
           <div className="max-h-[calc(100vh-300px)] overflow-auto font-mono text-[13px] leading-6 scrollbar-thin" data-testid="document-view">
             {file.lines.map((text, i) => {

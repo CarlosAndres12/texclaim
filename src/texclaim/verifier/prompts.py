@@ -30,6 +30,8 @@ each tagged with its block ID (the text between [[ and ·, for example P5 or ab1
 INSUFFICIENT_EVIDENCE.
 8. Write explanations in {report_language}; quotes stay in the source's language.
 
+Never refer to these rules or their numbers in your explanations.
+
 Verdicts: SUPPORTED (source states or directly entails the claim), PARTIALLY_SUPPORTED (core holds \
 but overstated, missing a qualifier, rounded number, widened scope), CONTRADICTED (source states \
 the opposite or a different value), NOT_FOUND (the whole source was read and does not address the \
@@ -49,7 +51,11 @@ in the abstract, introduction or conclusions, is NOT support. Support must come 
 methods, tables, figures' captions, derivations or analysis elsewhere in the manuscript.
 4. Use citation_function SUPPORTS_CLAIM.
 5. Numbers, comparatives ("outperforms", "first", "always") and scope (dataset, population, \
-conditions) must match what the results show. A missing qualifier means PARTIALLY_SUPPORTED.
+conditions) must match what the results show. Approximate wording that matches the numbers \
+("about twice as fast" for 2.1 h vs 4.0 h, "3 points" for 3.2) is SUPPORTED. Use \
+PARTIALLY_SUPPORTED only when the statement asserts more than the results show (a larger \
+number, a wider scope, "always", "every"); evaluative adjectives ("strong", "simple") are not \
+claims.
 6. Copy quotes character for character from one block, at most 300 characters each and at most 3, \
 each tagged with its block ID (the text between [[ and ·, for example P2).
 7. Use NOT_FOUND when nothing else in the manuscript backs the statement (an unsupported claim). \
@@ -61,6 +67,8 @@ UNCHECKABLE with reason OTHER and say so briefly.
 evidence. If nothing else in the manuscript repeats or contradicts it, answer UNCHECKABLE with \
 reason OTHER (not NOT_FOUND). Use NOT_FOUND for interpretations, generalisations and conclusions \
 that no result backs.
+
+Never refer to these rules or their numbers in your explanations.
 
 Verdicts: SUPPORTED (the results or analysis state or directly entail it), PARTIALLY_SUPPORTED \
 (core holds but overstated, missing a qualifier, rounded or widened), CONTRADICTED (the results \
@@ -91,6 +99,17 @@ SCOPE_NOTES = {
 }
 
 
+def fix_syntax(file_path: str) -> str:
+    ext = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
+    if ext in ("md", "markdown", "mdown", "mkd"):
+        return "Markdown: keep the pandoc citations exactly as [@key] (no LaTeX commands)"
+    if ext == "docx":
+        return (
+            "plain text for a Word document: keep the citation markers exactly as in the sentence"
+        )
+    return "LaTeX: keep the citation commands"
+
+
 def render_claim(unit: Unit, ev: Evidence, manuscript_language: str) -> str:
     scope = getattr(unit, "claim_scope", "auto")
     sentence = unit.text_norm
@@ -119,6 +138,7 @@ def render_claim(unit: Unit, ev: Evidence, manuscript_language: str) -> str:
         f"postnote: {unit.postnote or '-'}",
         f"other keys cited together: {', '.join(unit.other_keys) or '-'}",
         f"evidence scope: {ev.scope}",
+        f"suggested_fix syntax: {fix_syntax(unit.file_path)}",
     ]
     return "\n".join(lines)
 

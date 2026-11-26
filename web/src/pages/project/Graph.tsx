@@ -33,9 +33,11 @@ const KIND_HEX: Record<Kind, string> = {
   work: "#0891b2",
   entity: "#d97706",
 };
+// Entity colours avoid the verdict hues (green, amber, red, purple, slate)
 const ETYPE_HEX: Record<string, string> = {
-  method: "#7c3aed", dataset: "#0d9488", metric: "#db2777", task: "#2563eb", result: "#ea580c", concept: "#a16207",
+  method: "#2563eb", dataset: "#0d9488", metric: "#a16207", task: "#0369a1", result: "#db2777", concept: "#78716c",
 };
+const ENTITY_IN_VERDICT_MODE = "#14b8a6";
 const COMMUNITY = ["#6366f1", "#0891b2", "#16a34a", "#d97706", "#db2777", "#7c3aed", "#0d9488", "#dc2626", "#4f46e5", "#65a30d"];
 
 function nodeColor(n: GraphNode, mode: ColorMode): string {
@@ -45,11 +47,11 @@ function nodeColor(n: GraphNode, mode: ColorMode): string {
   if (n.kind === "work") {
     return n.status === "FULL_TEXT" ? KIND_HEX.work : n.status === "ABSTRACT_ONLY" ? "#67e8f9" : "#cbd5e1";
   }
-  if (n.kind === "entity") return ETYPE_HEX[n.etype || "concept"] ?? KIND_HEX.entity;
+  if (n.kind === "entity") return ENTITY_IN_VERDICT_MODE;
   return KIND_HEX[n.kind];
 }
 
-function buildGraph(data: GraphData, kinds: Set<Kind>, mode: ColorMode, layout: LayoutMode): Graph {
+function buildGraph(data: GraphData, kinds: Set<Kind>, mode: ColorMode, layout: LayoutMode, dark: boolean): Graph {
   const g = new Graph({ multi: true, type: "directed" });
   const sections = data.stats.sections;
   const maxDeg = Math.max(1, ...data.nodes.map((n) => n.degree));
@@ -66,7 +68,7 @@ function buildGraph(data: GraphData, kinds: Set<Kind>, mode: ColorMode, layout: 
   }
   for (const e of data.edges) {
     if (!g.hasNode(e.source) || !g.hasNode(e.target)) continue;
-    const color = e.verdict && e.verdict in VERDICT_HEX ? VERDICT_HEX[e.verdict as Verdict] + "aa" : "#94a3b866";
+    const color = e.verdict && e.verdict in VERDICT_HEX ? VERDICT_HEX[e.verdict as Verdict] + "cc" : dark ? "#94a3b880" : "#47556999";
     g.addDirectedEdgeWithKey(e.id, e.source, e.target, {
       size: e.kind === "cites" || e.kind === "evidence" ? 1.6 : 0.8,
       color, kind: e.kind, type: "arrow",
@@ -84,7 +86,7 @@ function buildGraph(data: GraphData, kinds: Set<Kind>, mode: ColorMode, layout: 
       if (c === -2) c = sections.length + (a.kind === "work" ? 0 : 1);
       const k = counts.get(c) ?? 0;
       counts.set(c, k + 1);
-      g.mergeNodeAttributes(id, { x: c * 40, y: a.kind === "section" ? 0 : -(k + 1) * (a.kind === "claim" ? 8 : 6) });
+      g.mergeNodeAttributes(id, { x: c * 120, y: a.kind === "section" ? 0 : -(k + 1) * 14 });
     });
   } else {
     circular.assign(g, { scale: 100 });
@@ -118,13 +120,13 @@ export default function GraphTab({ project }: { project: Project }) {
 
   React.useEffect(() => {
     if (!data || !container.current) return;
-    const g = buildGraph(data, kinds, mode, layout);
-    graphRef.current = g;
     const dark = document.documentElement.classList.contains("dark");
+    const g = buildGraph(data, kinds, mode, layout, dark);
+    graphRef.current = g;
     const sigma = new Sigma(g, container.current, {
       renderLabels: labels,
       labelDensity: 0.7,
-      labelRenderedSizeThreshold: 7,
+      labelRenderedSizeThreshold: layout === "section" ? 12 : 7,
       labelColor: { color: dark ? "#e2e8f0" : "#1e293b" },
       labelFont: "Inter, ui-sans-serif, system-ui, sans-serif",
       labelSize: 12,
@@ -179,6 +181,8 @@ export default function GraphTab({ project }: { project: Project }) {
   const exportPng = () => {
     const s = sigmaRef.current;
     if (!s) return;
+    // WebGL buffers are cleared after each frame: re-render and copy in the same task
+    s.refresh();
     const { width, height } = s.getDimensions();
     const ratio = window.devicePixelRatio || 1;
     const out = document.createElement("canvas");
@@ -214,24 +218,24 @@ export default function GraphTab({ project }: { project: Project }) {
   const toggleKind = (k: Kind) => setKinds((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-      <Card className="relative overflow-hidden">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <Card className="relative min-w-0 overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 border-b p-3">
-          <div className="relative w-64">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
             <Input className="pl-9" placeholder={t("graph.search")} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t("graph.search")} data-testid="graph-search" />
             {matches.length > 0 && (
               <ul className="absolute top-10 z-20 w-80 rounded-lg border bg-popover p-1 shadow-lg">
                 {matches.map((n) => (
                   <li key={n.id}><button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent cursor-pointer" onClick={() => { focusNode(n.id); setQuery(""); }}>
-                    <span className="size-2 shrink-0 rounded-full" style={{ background: nodeColor(n, mode) }} /><span className="truncate">{cleanClaim(n.label)}</span><span className="ml-auto text-[10px] text-muted-foreground">{t(`graph.kinds.${n.kind}`)}</span>
+                    <span className="size-2 shrink-0 rounded-full" style={{ background: nodeColor(n, mode) }} /><span className="truncate">{cleanClaim(n.label)}</span><span className="ml-auto text-[10px] text-muted-foreground">{t(`graph.kindOne.${n.kind}`)}</span>
                   </button></li>
                 ))}
               </ul>
             )}
           </div>
-          <div className="w-40"><Select ariaLabel={t("graph.layout")} value={layout} onValueChange={(v) => setLayout(v as LayoutMode)} options={[{ value: "force", label: t("graph.force") }, { value: "section", label: t("graph.bySection") }, { value: "circular", label: t("graph.circular") }]} /></div>
-          <div className="w-40"><Select ariaLabel={t("graph.colorBy")} value={mode} onValueChange={(v) => setMode(v as ColorMode)} options={[{ value: "verdict", label: t("graph.byVerdict") }, { value: "kind", label: t("graph.byKind") }, { value: "community", label: t("graph.byCommunity") }]} /></div>
+          <div className="w-[calc(50%-4px)] sm:w-40"><Select ariaLabel={t("graph.layout")} value={layout} onValueChange={(v) => setLayout(v as LayoutMode)} options={[{ value: "force", label: t("graph.force") }, { value: "section", label: t("graph.bySection") }, { value: "circular", label: t("graph.circular") }]} /></div>
+          <div className="w-[calc(50%-4px)] sm:w-40"><Select ariaLabel={t("graph.colorBy")} value={mode} onValueChange={(v) => setMode(v as ColorMode)} options={[{ value: "verdict", label: t("graph.byVerdict") }, { value: "kind", label: t("graph.byKind") }, { value: "community", label: t("graph.byCommunity") }]} /></div>
           <Label className="text-xs font-normal"><Switch checked={labels} onCheckedChange={setLabels} />{t("graph.labels")}</Label>
           <div className="ml-auto flex items-center gap-1">
             <span className="mr-2 text-xs text-muted-foreground tabular-nums">{t("graph.stats", { nodes: data.nodes.length, edges: data.edges.length })}</span>
@@ -262,13 +266,20 @@ export default function GraphTab({ project }: { project: Project }) {
                 {(Object.keys(VERDICT_HEX) as (Verdict | "PENDING")[]).filter((v) => v !== "PENDING").map((v) => <li key={v} className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: VERDICT_HEX[v] }} />{t(`verdict.${v}`)}</li>)}
                 <li className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: KIND_HEX.section }} />{t("graph.kinds.section")}</li>
                 <li className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: KIND_HEX.work }} />{t("graph.kinds.work")}</li>
+                <li className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: ENTITY_IN_VERDICT_MODE }} />{t("graph.entitiesLegend")}</li>
               </ul>
             ) : mode === "kind" ? (
               <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
                 {(["section", "claim", "work"] as Kind[]).map((k) => <li key={k} className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: KIND_HEX[k] }} />{t(`graph.kinds.${k}`)}</li>)}
                 {Object.entries(ETYPE_HEX).map(([k, c]) => <li key={k} className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: c }} />{t(`graph.etypes.${k}`)}</li>)}
               </ul>
-            ) : <p className="text-muted-foreground">{t("graph.byCommunity")}</p>}
+            ) : (
+              <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
+                {[...new Set(data.nodes.map((n) => n.community))].sort((a, b) => a - b).slice(0, 10).map((c) => (
+                  <li key={c} className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: COMMUNITY[c % COMMUNITY.length] }} />{t("graph.community", { n: c + 1 })}</li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </Card>
@@ -279,7 +290,7 @@ export default function GraphTab({ project }: { project: Project }) {
             <>
               <CardHeader className="flex-row items-start justify-between gap-2">
                 <div className="min-w-0 space-y-1">
-                  <p className="text-xs text-muted-foreground">{sel.kind === "entity" ? t(`graph.etypes.${sel.etype}`) : t(`graph.kinds.${sel.kind}`)} · {t("graph.degree", { count: sel.degree })}</p>
+                  <p className="text-xs text-muted-foreground">{sel.kind === "entity" ? t(`graph.etypes.${sel.etype}`) : t(`graph.kindOne.${sel.kind}`)} · {t("graph.degree", { count: sel.degree })}</p>
                   <CardTitle className="text-base leading-snug break-words">{cleanClaim(sel.text || sel.label)}</CardTitle>
                 </div>
                 <Button variant="ghost" size="icon-sm" onClick={() => setSelected(null)} aria-label={t("app.close")}><X /></Button>
@@ -331,7 +342,7 @@ export default function GraphTab({ project }: { project: Project }) {
           <CardHeader><CardTitle className="flex items-center gap-2 text-sm"><Terminal className="size-4" />{t("graph.mcpTitle")}</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             <p className="text-xs text-muted-foreground">{t("graph.mcpBody")}</p>
-            <pre className="overflow-x-auto rounded-md bg-muted p-2.5 font-mono text-[11px]">{`claude mcp add texclaim -- \\\n  texclaim mcp "${project.folder}"`}</pre>
+            <pre className="overflow-x-auto rounded-md bg-muted p-2.5 font-mono text-[11px] whitespace-pre-wrap break-all">{`claude mcp add texclaim -- \\\n  texclaim mcp "${project.folder}"`}</pre>
           </CardContent>
         </Card>
       </div>

@@ -11,6 +11,16 @@ import { PageHeader, VerdictBadge } from "@/components/common";
 export default function HelpPage() {
   const { t } = useTranslation();
   const steps = t("help.steps", { returnObjects: true }) as string[];
+  const c = t("help.cliComments", { returnObjects: true }) as string[];
+  const cli: [string, string][] = [
+    ["texclaim check path/to/paper", c[0]],
+    ["texclaim check --claim-scope two", c[1]],
+    ["texclaim check --internal-section Results", c[2]],
+    ["texclaim export --format docx", c[3]],
+    ["texclaim sources export", c[4]],
+    ["texclaim graph && texclaim mcp .", c[5]],
+    ["texclaim serve", c[6]],
+  ];
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader title={t("help.title")} description={t("app.tagline")} />
@@ -42,13 +52,7 @@ export default function HelpPage() {
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Terminal className="size-4" />{t("help.cli")}</CardTitle></CardHeader>
         <CardContent>
-          <pre className="overflow-auto rounded-lg bg-muted p-4 font-mono text-xs leading-relaxed">{`texclaim check path/to/paper           # LaTeX, Markdown or Word
-texclaim check --claim-scope two       # claim length: auto | sentence | two | paragraph
-texclaim check --internal-section Results
-texclaim export --format docx          # report as Word / HTML
-texclaim sources export                # PDFs of the cited works
-texclaim graph && texclaim mcp .       # knowledge graph for agents
-texclaim serve                         # this web app`}</pre>
+          <pre className="overflow-auto rounded-lg bg-muted p-4 font-mono text-xs leading-relaxed">{cli.map(([cmd, note]) => `${cmd.padEnd(42)}# ${note}`).join("\n")}</pre>
         </CardContent>
       </Card>
       <Alert variant="warning"><ShieldAlert /><p>{t("help.privacy")}</p></Alert>

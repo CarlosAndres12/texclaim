@@ -33,7 +33,7 @@ function LanguageSwitch() {
   const lang = i18n.resolvedLanguage === "es" ? "es" : "en";
   return (
     <div className="flex items-center rounded-lg border bg-card p-0.5" role="group" aria-label={t("app.language")}>
-      <Languages className="mx-1.5 size-4 text-muted-foreground" aria-hidden />
+      <Languages className="mx-1.5 hidden size-4 text-muted-foreground sm:block" aria-hidden />
       {(["en", "es"] as const).map((l) => (
         <button
           key={l}
@@ -81,7 +81,7 @@ function HealthMenu() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="hidden md:inline-flex" data-testid="health">
             <span className={cn("size-2 rounded-full", data.model_configured ? "bg-supported" : "bg-partial")} />
-            <span className="max-w-48 truncate text-xs font-normal text-muted-foreground">
+            <span className="max-w-72 truncate text-xs font-normal text-muted-foreground">
               {data.default_model ? t("status.modelReady", { model: data.default_model }) : t("status.noModel")}
             </span>
           </Button>
@@ -111,14 +111,14 @@ export function Layout() {
     <div className="flex min-h-full flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground">{t("app.skipToContent")}</a>
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-2 px-3 sm:gap-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight" aria-label="texclaim">
             <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"><BookOpenCheck className="size-4" /></span>
-            <span>texclaim</span>
+            <span className="hidden sm:inline">texclaim</span>
           </Link>
           <nav className="flex items-center gap-1">
             <NavLink to="/" end className={nav}>{t("app.projects")}</NavLink>
-            <NavLink to="/help" className={nav}><span className="flex items-center gap-1.5"><CircleHelp className="size-4" />{t("app.help")}</span></NavLink>
+            <NavLink to="/help" className={nav} aria-label={t("app.help")}><span className="flex items-center gap-1.5"><CircleHelp className="size-4" /><span className="hidden sm:inline">{t("app.help")}</span></span></NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <HealthMenu />
@@ -127,7 +127,7 @@ export function Layout() {
           </div>
         </div>
       </header>
-      <main id="main" className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 sm:px-6">
+      <main id="main" className="mx-auto w-full max-w-[1600px] min-w-0 flex-1 px-3 py-6 sm:px-6">
         <Outlet />
       </main>
     </div>
