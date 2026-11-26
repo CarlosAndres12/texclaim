@@ -174,6 +174,8 @@ const en = {
     noFlags: "No problems were flagged. Some statements could not be checked; see Findings → all checks.",
     firstRun: "Results will appear here when the first check finishes.",
     diagnostics: "Parser notes",
+    checksCount_one: "{{count}} check",
+    checksCount_other: "{{count}} checks",
   },
   verdict: {
     SUPPORTED: "Supported",
@@ -212,6 +214,7 @@ const en = {
     estimateDone: "Estimate finished",
     noClaims: "No statements to check were found. Make sure the manuscript cites works from its bibliography.",
     noCitations: "The manuscript has no citations: only its internal statements were checked.",
+    noCitationsDry: "The manuscript has no citations: only its internal statements would be checked.",
     confirmTitle: "Re-check everything?",
     confirmBody: "All {{count}} existing results will be replaced by new ones from {{model}}. This cannot be undone and may cost money.",
     estimateSummary_one: "{{count}} check would run · {{reused}} reused · no model calls made",
@@ -298,6 +301,7 @@ const en = {
     landing: "Publisher page",
     doi: "DOI",
     empty: "Run a check to resolve the cited works.",
+    noCitations: "This manuscript cites no works.",
     downloadAll: "Download all (.zip)",
     filter: "Filter works",
     statusLabel: {

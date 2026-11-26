@@ -229,7 +229,8 @@ def render_markdown(rep: dict, lang: str | None = None) -> str:
         if (
             u["verdict"] == "UNCHECKABLE"
             and not u["suppressed"]
-            and u.get("claim_origin") != "internal"
+            # internal statements only when they matter: abstract, conclusions, or a problem
+            and (u.get("claim_origin") != "internal" or u.get("role") or u.get("what_is_wrong"))
         ):
             groups[u["reason_code"]].append(u)
     for reason in sorted(groups):

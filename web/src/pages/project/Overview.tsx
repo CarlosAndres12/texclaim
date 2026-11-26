@@ -98,7 +98,7 @@ export default function OverviewTab({ project }: { project: Project }) {
     <div className="space-y-6">
       {run.running && <Alert variant="info"><Loader2 className="animate-spin" /><p>{t("overview.runningNote")}</p></Alert>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={t("overview.claims")} value={report.run.counts.claims} icon={<Quote />} hint={`${report.units.length} ${t("overview.units").toLowerCase()}`} />
+        <StatCard label={t("overview.claims")} value={report.run.counts.claims} icon={<Quote />} hint={t("overview.checksCount", { count: report.units.length })} />
         <StatCard label={t("overview.findings")} value={s.findings} icon={<AlertTriangle />} accent={s.findings ? VERDICT_COLOR.CONTRADICTED : undefined}
           hint={VERDICTS.filter((v) => (s.finding_verdicts?.[v] ?? 0) > 0).map((v) => t(`verdictCount.${v}`, { count: s.finding_verdicts![v] })).join(" · ") || "—"} />
         <StatCard label={t("overview.coverage")} value={cov.full_text + cov.abstract_only + cov.none ? `${Math.round((cov.full_text / covTotal) * 100)}%` : "—"} icon={<BookOpen />}

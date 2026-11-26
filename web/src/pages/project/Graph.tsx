@@ -64,6 +64,7 @@ function buildGraph(data: GraphData, kinds: Set<Kind>, mode: ColorMode, layout: 
       color: nodeColor(n, mode),
       x: Math.random(), y: Math.random(),
       kind: n.kind,
+      forceLabel: n.kind === "section" || n.kind === "document",
     });
   }
   for (const e of data.edges) {
@@ -102,7 +103,7 @@ function buildGraph(data: GraphData, kinds: Set<Kind>, mode: ColorMode, layout: 
 export default function GraphTab({ project }: { project: Project }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const { data, isLoading, error, refetch, isFetching } = useQuery({ queryKey: ["graph", project.id], queryFn: () => api.graph(project.id), retry: false });
+  const { data, isLoading, error, refetch, isFetching } = useQuery({ queryKey: ["graph", project.id], queryFn: () => api.graph(project.id), retry: false, enabled: !!project.summary });
   const { data: report } = useReport(project.id, !!project.summary);
   const container = React.useRef<HTMLDivElement>(null);
   const sigmaRef = React.useRef<Sigma | null>(null);
@@ -208,6 +209,7 @@ export default function GraphTab({ project }: { project: Project }) {
     a.click();
   };
 
+  if (!project.summary) return <EmptyState icon={<Network />} title={t("graph.empty")} />;
   if (isLoading) return <Skeleton className="h-[640px]" />;
   if (error) return error instanceof Error && error.message.includes("run a check") ? <EmptyState icon={<Network />} title={t("graph.empty")} /> : <ErrorState error={error} onRetry={() => refetch()} />;
   if (!data) return null;

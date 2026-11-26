@@ -53,7 +53,7 @@ export default function SourcesTab({ project }: { project: Project }) {
 
   if (isLoading) return <Skeleton className="h-96" />;
   if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
-  if (!data?.length) return <EmptyState icon={<BookMarked />} title={t("sources.empty")} />;
+  if (!data?.length) return <EmptyState icon={<BookMarked />} title={project.summary ? t("sources.noCitations") : t("sources.empty")} />;
 
   const q = filter.toLowerCase();
   const rows = data.filter((r) => !q || `${r.bib_key} ${r.title ?? ""} ${r.authors.join(" ")}`.toLowerCase().includes(q));
@@ -74,7 +74,7 @@ export default function SourcesTab({ project }: { project: Project }) {
               <tr>
                 <th className="px-4 py-2.5 font-medium">{t("sources.work")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("sources.status")}</th>
-                <th className="px-4 py-2.5 font-medium">{t("sources.results")}</th>
+                <th className="hidden px-4 py-2.5 font-medium md:table-cell">{t("sources.results")}</th>
                 <th className="px-4 py-2.5 text-right font-medium">{t("sources.file")}</th>
               </tr>
             </thead>
@@ -93,7 +93,7 @@ export default function SourcesTab({ project }: { project: Project }) {
                     <Badge variant="outline" className={cn(STATUS_TONE[r.status])}>{statusLabel(r.status)}</Badge>
                     {r.provider && <div className="mt-1 text-[11px] text-muted-foreground">{t(`sources.provider.${r.provider}`, { defaultValue: r.provider })}{r.version ? ` · ${t(`sources.version.${r.version}`, { defaultValue: r.version })}` : ""}</div>}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="hidden px-4 py-3 md:table-cell">
                     <div className="flex flex-wrap gap-2">
                       {VERDICTS.filter((v) => r.verdicts[v]).map((v: Verdict) => (
                         <Tooltip key={v} content={t(`verdict.${v}`)}><span className="flex items-center gap-1 text-xs tabular-nums"><VerdictDot verdict={v} />{r.verdicts[v]}</span></Tooltip>
@@ -101,8 +101,8 @@ export default function SourcesTab({ project }: { project: Project }) {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-0.5">
-                      <span className="mr-2 text-xs text-muted-foreground">{t(`sources.kind.${r.file_kind}`)}</span>
+                    <div className="flex flex-wrap items-center justify-end gap-0.5">
+                      <span className="mr-2 hidden text-xs text-muted-foreground sm:inline">{t(`sources.kind.${r.file_kind}`)}</span>
                       {r.file_kind !== "none" && (
                         <>
                           <Tooltip content={r.file_kind === "pdf" ? t("sources.viewPdf") : t("sources.viewText")}>

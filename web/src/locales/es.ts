@@ -176,6 +176,8 @@ const es: Messages = {
     noFlags: "No se señalaron problemas. Algunas afirmaciones no se pudieron verificar; vea Hallazgos → todas las verificaciones.",
     firstRun: "Los resultados aparecerán aquí cuando termine la primera verificación.",
     diagnostics: "Notas del analizador",
+    checksCount_one: "{{count}} verificación",
+    checksCount_other: "{{count}} verificaciones",
   },
   verdict: {
     SUPPORTED: "Respaldada",
@@ -214,6 +216,7 @@ const es: Messages = {
     estimateDone: "Estimación terminada",
     noClaims: "No se encontraron afirmaciones para verificar. Asegúrese de que el manuscrito cite obras de su bibliografía.",
     noCitations: "El manuscrito no tiene citas: solo se verificaron sus afirmaciones internas.",
+    noCitationsDry: "El manuscrito no tiene citas: solo se verificarían sus afirmaciones internas.",
     confirmTitle: "¿Verificar todo de nuevo?",
     confirmBody: "Los {{count}} resultados existentes se reemplazarán por otros nuevos de {{model}}. No se puede deshacer y puede tener costo.",
     estimateSummary_one: "Se haría {{count}} verificación · {{reused}} reutilizadas · sin llamadas al modelo",
@@ -300,6 +303,7 @@ const es: Messages = {
     landing: "Página del editor",
     doi: "DOI",
     empty: "Ejecute una verificación para resolver las obras citadas.",
+    noCitations: "Este manuscrito no cita ninguna obra.",
     downloadAll: "Descargar todo (.zip)",
     filter: "Filtrar obras",
     statusLabel: {

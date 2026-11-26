@@ -71,14 +71,14 @@ export default function RunTab({ project }: { project: Project }) {
               <div className="space-y-2">
                 <Progress value={pct} indicatorClassName={state === "failed" ? "bg-destructive" : undefined} />
                 <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
-                  <span>{total ? t("run.progress", { done: units.length, total }) : current ? t(`run.stage.${current}`, { defaultValue: current }) : ""}</span>
+                  <span>{isDry && done ? t("run.estimateDone") : total && !isDry ? t("run.progress", { done: units.length, total }) : current ? t(`run.stage.${current}`, { defaultValue: current }) : ""}</span>
                   <span>{t("run.elapsed", { time: elapsed })}</span>
                 </div>
                 {plan && <p className="text-xs text-muted-foreground">{t("run.queued", { queued: plan.queued, reused: plan.reused })}</p>}
                 <p className="text-xs text-muted-foreground">{t("run.cost", { cost: formatCost(lastCost) })}</p>
               </div>
             )}
-            {done && (Number(done.units) === 0 || Number(done.cited ?? 1) === 0) && <Alert variant="warning"><AlertCircle /><p>{Number(done.units) === 0 ? t("run.noClaims") : t("run.noCitations")}</p></Alert>}
+            {done && (Number(done.units) === 0 || Number(done.cited ?? 1) === 0) && <Alert variant="warning"><AlertCircle /><p>{Number(done.units) === 0 ? t("run.noClaims") : isDry ? t("run.noCitationsDry") : t("run.noCitations")}</p></Alert>}
             {err && <Alert variant="destructive"><AlertCircle /><p className="break-words">{friendlyError(err.message, t)}</p></Alert>}
             {done && (
               <p className="rounded-lg bg-muted p-3 text-sm">
