@@ -166,6 +166,20 @@ def check(
     report_language: Annotated[
         str | None, typer.Option("--report-language", help="en | es")
     ] = None,
+    claim_scope: Annotated[
+        str | None,
+        typer.Option("--claim-scope", help="auto (model decides) | sentence | two | paragraph"),
+    ] = None,
+    internal: Annotated[
+        bool | None,
+        typer.Option(
+            "--internal/--no-internal", help="Also check uncited claims against the document."
+        ),
+    ] = None,
+    internal_section: Annotated[
+        list[str] | None,
+        typer.Option("--internal-section", help="Limit internal checks to these sections."),
+    ] = None,
     cache_dir: Annotated[Path | None, typer.Option("--cache-dir")] = None,
     list_uncited: Annotated[bool, typer.Option("--list-uncited")] = False,
     verbose: Annotated[
@@ -186,6 +200,7 @@ def check(
         (recheck, (None, "flagged", "stale-model"), "--recheck"),
         (evidence, (None, "auto", "full", "passages"), "--evidence"),
         (report_language, (None, "en", "es"), "--report-language"),
+        (claim_scope, (None, "auto", "sentence", "two", "paragraph"), "--claim-scope"),
     ):
         if opt not in allowed:
             raise _fail(f"invalid value for {name}: {opt}")
@@ -200,6 +215,8 @@ def check(
                 "main": main_file, "model": model, "evidence.strategy": evidence,
                 "budget.concurrency": concurrency, "offline": offline or None,
                 "pdf_dirs": pdf_dir or None, "report_language": report_language,
+                "claim_scope": claim_scope, "internal.enabled": internal,
+                "internal.sections": internal_section or None,
                 "fail_on": [x.strip() for x in fail_on.split(",")] if fail_on else None,
             },
         )  # fmt: skip

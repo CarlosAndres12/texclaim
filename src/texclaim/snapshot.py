@@ -30,11 +30,12 @@ def write_snapshot(
         for c in parsed.claims:
             cur = conn.execute(
                 "INSERT INTO claims(claim_hash, file_path, line_start, line_end, char_start,"
-                " char_end, section_path, unit_kind, raw_latex, text_norm, context_norm)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                 " char_end, section_path, unit_kind, raw_latex, text_norm, context_norm,"
+                " prev_norm, para_norm, origin, role) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     c.claim_hash, c.file_path, c.line_start, c.line_end, c.char_start, c.char_end,
                     c.section_path, c.unit_kind, c.raw_latex, c.text_norm, c.context_norm,
+                    c.prev_norm, c.para_norm, c.origin, c.role,
                 ),
             )  # fmt: skip
             for k in c.citations:

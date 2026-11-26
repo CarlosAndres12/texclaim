@@ -173,3 +173,64 @@ def test_dotenv_parse_and_precedence(tmp_path):
     env = {"D": "real"}
     dotenv.load([f], env)
     assert env == {"A": "1", "B": "two words", "C": "x", "D": "real"}
+
+
+def _unit(**kw):
+    from texclaim.models import Unit
+
+    base = dict(
+        unit_key="k", bib_key="b", claim_hash="h", text_norm="S2 [@b].", context_norm="S1 S3",
+        unit_kind="sentence", section_path="", file_path="f", line_start=1, cite_command="",
+        prenote=None, postnote=None, group_keys=["b"], attributed_span="S2", other_keys=[],
+        source_status="FULL_TEXT", text_sha256="x", source_language=None, source_provider=None,
+        source_version=None, strategy="full", prev_norm="S1", para_norm="S1 S2 [@b]. S3",
+    )  # fmt: skip
+    base.update(kw)
+    return Unit(**base)
+
+
+@pytest.mark.parametrize(
+    "scope,claim,context",
+    [
+        ("auto", "sentence: S2 [@b].", "context sentences: S1 S3"),
+        ("sentence", "sentence: S2 [@b].", "context sentences: -"),
+        ("two", "claim: S1 S2 [@b].", "context sentences: -"),
+        ("paragraph", "claim: S1 S2 [@b]. S3", "context sentences: -"),
+    ],
+)
+def test_claim_scope_prompt(scope, claim, context):
+    from texclaim.verifier.evidence import Evidence
+    from texclaim.verifier.prompts import render_claim
+
+    text = render_claim(
+        _unit(claim_scope=scope), Evidence(strategy="full", scope="full_text", blocks=[]), "en"
+    )
+    assert claim in text and context in text
+    assert ("claim scope:" in text) == (scope != "auto")
+
+
+def test_claim_scope_changes_unit_key():
+    from texclaim.planner import unit_key
+
+    kw = dict(
+        claim_hash="h", bib_key="b", prenote=None, postnote=None, group_keys=["b"],
+        attributed_span="s", source="x", strategy="full",
+    )  # fmt: skip
+    auto = unit_key(**kw)
+    assert auto == unit_key(**kw, claim_scope="auto", scope_text="ignored")
+    assert auto != unit_key(**kw, claim_scope="two", scope_text="S1")
+    assert unit_key(**kw, claim_scope="two", scope_text="S1") != unit_key(
+        **kw, claim_scope="two", scope_text="S1 changed"
+    )
+
+
+def test_extractor_records_prev_and_paragraph(tmp_path):
+    from texclaim.parser import parse_manuscript
+
+    (tmp_path / "main.tex").write_text(
+        "\\documentclass{article}\\begin{document}\nFirst point here. Second point \\cite{a}. "
+        "Third point.\n\\end{document}\n"
+    )
+    c = parse_manuscript(tmp_path).claims[0]
+    assert c.prev_norm == "First point here."
+    assert c.para_norm.startswith("First point here. Second point") and "Third" in c.para_norm

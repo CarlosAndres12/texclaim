@@ -60,6 +60,13 @@ phase gate (`make test lint` green). Decisions taken along the way go to `DECISI
 - Upload a missing PDF for a bib key (saved as `papers/<key>.pdf`, then re-resolved).
 - Report downloads: Markdown, JSON, HTML and Word (`.docx` via pandoc).
 
+## Phase 12b: Asta / Semantic Scholar source
+
+- `ASTA_API_KEY` in `.env` (user request). New provider `semantic_scholar` in the source cascade
+  after arXiv: resolve by DOI/arXiv/title via the Semantic Scholar Graph API (`x-api-key`), use
+  `openAccessPdf` for downloads and `abstract`/`tldr` when no PDF exists. Keyless calls work at
+  lower limits; with no key and offline mode it is skipped.
+
 ## Phase 13: web backend (`texclaim serve`)
 
 - FastAPI app in `texclaim/web/`, served by uvicorn, default `127.0.0.1:8765`.

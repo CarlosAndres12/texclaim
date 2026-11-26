@@ -54,6 +54,11 @@ class Unit:
     source_version: str | None
     strategy: str  # full | passages | abstract | none
     order: int = 0
+    claim_scope: str = "auto"  # auto | sentence | two | paragraph
+    prev_norm: str = ""
+    para_norm: str = ""
+    origin: str = "cited"
+    role: str = ""
 
 
 @dataclass
@@ -83,6 +88,10 @@ class ClaimRec:
     text_norm: str
     context_norm: str
     citations: list[CitationRec] = field(default_factory=list)
+    prev_norm: str = ""  # previous sentence of the same paragraph
+    para_norm: str = ""  # the whole paragraph
+    origin: str = "cited"  # cited | internal
+    role: str = ""  # '' | abstract | conclusion
 
 
 # ---- verifier contract (PLAN §11.4) -------------------------------------------------------

@@ -47,15 +47,36 @@ def render_source(unit: Unit, ev: Evidence) -> str:
     return "\n\n".join(parts)
 
 
+SCOPE_NOTES = {
+    "sentence": "claim scope: sentence. Judge only the sentence; no context is given.",
+    "two": "claim scope: two sentences. The claim is the previous sentence plus the citing "
+    "sentence, read together; the citation must support both.",
+    "paragraph": "claim scope: paragraph. The claim is the whole paragraph; the citation must "
+    "support every statement in it that is not covered by other citations.",
+}
+
+
 def render_claim(unit: Unit, ev: Evidence, manuscript_language: str) -> str:
+    scope = getattr(unit, "claim_scope", "auto")
+    sentence = unit.text_norm
+    context = unit.context_norm or "-"
+    if scope == "sentence":
+        context = "-"
+    elif scope == "two":
+        sentence = f"{unit.prev_norm} {unit.text_norm}".strip()
+        context = "-"
+    elif scope == "paragraph":
+        sentence = unit.para_norm or unit.text_norm
+        context = "-"
     lines = [
         "CLAIM",
         f"manuscript language: {manuscript_language}",
         f"unit kind: {unit.unit_kind}",
         f"section: {unit.section_path or '-'}",
-        f"sentence: {unit.text_norm}",
+        *([SCOPE_NOTES[scope]] if scope in SCOPE_NOTES else []),
+        f"{'sentence' if scope in ('auto', 'sentence') else 'claim'}: {sentence}",
         f"attributed span for [@{unit.bib_key}]: {unit.attributed_span}",
-        f"context sentences: {unit.context_norm or '-'}",
+        f"context sentences: {context}",
         f"citation command: {unit.cite_command}",
         f"prenote: {unit.prenote or '-'}",
         f"postnote: {unit.postnote or '-'}",

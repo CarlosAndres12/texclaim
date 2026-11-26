@@ -37,6 +37,8 @@ def unit_key(
     attributed_span: str,
     source: str,
     strategy: str,
+    claim_scope: str = "auto",
+    scope_text: str = "",
 ) -> str:
     """Changes exactly when something the verifier would see changes (D1)."""
     payload = {
@@ -49,8 +51,19 @@ def unit_key(
         "scope": strategy,
         "prompt": PROMPT_MAJOR,
     }  # fmt: skip
+    if claim_scope != "auto":  # auto keeps the original key so existing results stay valid
+        payload["claim_scope"] = claim_scope
+        payload["scope_text"] = hashlib.sha256(scope_text.encode()).hexdigest()
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(blob.encode()).hexdigest()
+
+
+def scope_text(scope: str, r) -> str:
+    if scope == "two":
+        return r["prev_norm"]
+    if scope == "paragraph":
+        return r["para_norm"]
+    return ""
 
 
 def is_deterministic(u: Unit) -> bool:
@@ -70,7 +83,8 @@ def load_units(
     rows = conn.execute(
         "SELECT c.citation_pk, c.bib_key, c.cite_command, c.prenote, c.postnote, c.group_keys,"
         " c.attributed_span, cl.claim_pk, cl.claim_hash, cl.text_norm, cl.context_norm,"
-        " cl.unit_kind, cl.section_path, cl.file_path, cl.line_start,"
+        " cl.unit_kind, cl.section_path, cl.file_path, cl.line_start, cl.prev_norm, cl.para_norm,"
+        " cl.origin, cl.role,"
         " r.source_status, r.text_sha256, r.source_language, r.source_provider, r.source_version"
         " FROM citations c JOIN claims cl ON cl.claim_pk = c.claim_pk"
         " LEFT JOIN references_catalog r ON r.bib_key = c.bib_key"
@@ -82,6 +96,7 @@ def load_units(
     units: dict[str, Unit] = {}
     sizes: dict[str, int] = {}
     updates = []
+    scope = settings.claim_scope
     for r in rows:
         status = r["source_status"] or "MISSING_BIB_ENTRY"
         sha = r["text_sha256"]
@@ -96,6 +111,7 @@ def load_units(
             claim_hash=r["claim_hash"], bib_key=r["bib_key"], prenote=r["prenote"],
             postnote=r["postnote"], group_keys=json.loads(r["group_keys"]),
             attributed_span=r["attributed_span"], source=sha or status, strategy=strategy,
+            claim_scope=scope, scope_text=scope_text(scope, r),
         )  # fmt: skip
         updates.append((key, r["citation_pk"]))
         if key in units:
@@ -112,7 +128,9 @@ def load_units(
             ],
             source_status=status, text_sha256=sha, source_language=r["source_language"],
             source_provider=r["source_provider"], source_version=r["source_version"],
-            strategy=strategy, order=len(units),
+            strategy=strategy, order=len(units), claim_scope=scope,
+            prev_norm=r["prev_norm"], para_norm=r["para_norm"], origin=r["origin"],
+            role=r["role"],
         )  # fmt: skip
     if write_keys:
         conn.executemany("UPDATE citations SET unit_key=? WHERE citation_pk=?", updates)

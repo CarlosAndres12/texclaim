@@ -260,6 +260,7 @@ class _Extractor:
                 continue
             ctx = " ".join(n for i, n in enumerate(norms) if abs(i - idx) == 1 and n)
             text_norm = norms[idx]
+            prev = norms[idx - 1] if idx > 0 else ""
             claim = ClaimRec(
                 claim_hash=hashlib.sha256(text_norm.encode()).hexdigest(),
                 file_path=self.sf.path,
@@ -272,6 +273,8 @@ class _Extractor:
                 raw_latex=self.text[a:b],
                 text_norm=text_norm,
                 context_norm=collapse(ctx),
+                prev_norm=collapse(prev),
+                para_norm=collapse(" ".join(n for n in norms if n)),
             )
             prev_end = a
             for ci, c in enumerate(own):

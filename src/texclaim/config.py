@@ -56,6 +56,8 @@ class Settings(BaseModel):
     main: str | None = None
     model: str | None = None
     report_language: Literal["auto", "en", "es"] = "auto"
+    # How much text one citation is checked against: auto lets the model decide from context
+    claim_scope: Literal["auto", "sentence", "two", "paragraph"] = "auto"
     fail_on: list[str] = Field(default_factory=lambda: ["contradicted", "missing_bib_entry"])
     extra_cite_commands: list[str] = Field(default_factory=list)
     pdf_dirs: list[str] = Field(default_factory=lambda: ["papers"])
@@ -73,8 +75,12 @@ class Settings(BaseModel):
 # environment variable -> dotted setting path
 ENV_SETTINGS = {
     "TEXCLAIM_MODEL": "model",
+    "TEXCLAIM_CONTACT_EMAIL": "contact_email",
+    "TEXCLAIM_REPORT_LANGUAGE": "report_language",
+    "TEXCLAIM_CLAIM_SCOPE": "claim_scope",
+    "TEXCLAIM_MAX_USD": "budget.max_llm_usd_per_run",
 }
-ENV_SECRETS = {"openalex_api_key": "OPENALEX_API_KEY"}
+ENV_SECRETS = {"openalex_api_key": "OPENALEX_API_KEY", "asta_api_key": "ASTA_API_KEY"}
 
 
 def _read_toml(path: Path) -> dict[str, Any]:

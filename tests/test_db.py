@@ -7,11 +7,12 @@ from texclaim import paths
 from texclaim.cli import app
 from texclaim.db import state_store
 from texclaim.db.state_store import RunLockedError, open_db, run_lock
+from texclaim.versions import SCHEMA_VERSION
 
 
 def test_migrate_from_empty(tmp_path):
     conn = open_db(tmp_path)
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
     assert {"runs", "claims", "citations", "verification_results", "current_results"} <= tables
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
@@ -21,7 +22,7 @@ def test_migrate_from_empty(tmp_path):
 def test_migrate_is_idempotent(tmp_path):
     open_db(tmp_path).close()
     conn = open_db(tmp_path)
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
 
 def test_current_results_view(tmp_path):
