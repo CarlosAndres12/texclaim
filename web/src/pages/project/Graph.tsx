@@ -80,10 +80,11 @@ function buildGraph(data: GraphData, kinds: Set<Kind>, mode: ColorMode, layout: 
     // Columns by section; claims under their section, works/entities to the right
     const col = new Map<string, number>(sections.map((s, i) => [`sec:${s}`, i]));
     const counts = new Map<number, number>();
+    let entityIdx = 0;
     g.forEachNode((id, a) => {
       let c = a.kind === "document" ? -1 : a.kind === "section" ? col.get(id) ?? 0 : -2;
       if (a.kind === "claim") g.forEachInNeighbor(id, (nb) => { if (col.has(nb)) c = col.get(nb)!; });
-      if (c === -2) c = sections.length + (a.kind === "work" ? 0 : 1);
+      if (c === -2) c = sections.length + (a.kind === "work" ? 0 : 1 + (entityIdx++ % 3));
       const k = counts.get(c) ?? 0;
       counts.set(c, k + 1);
       g.mergeNodeAttributes(id, { x: c * 260, y: a.kind === "section" ? 0 : -(k + 1) * 26 });
@@ -125,7 +126,9 @@ export default function GraphTab({ project }: { project: Project }) {
     graphRef.current = g;
     const sigma = new Sigma(g, container.current, {
       renderLabels: labels,
-      labelDensity: 0.7,
+      labelDensity: 0.35,
+      labelGridCellSize: 140,
+      stagePadding: 40,
       labelRenderedSizeThreshold: layout === "section" ? 12 : 7,
       labelColor: { color: dark ? "#e2e8f0" : "#1e293b" },
       labelFont: "Inter, ui-sans-serif, system-ui, sans-serif",
@@ -259,7 +262,7 @@ export default function GraphTab({ project }: { project: Project }) {
             <Tooltip side="left" content={t("graph.zoomOut")}><Button variant="ghost" size="icon-sm" aria-label={t("graph.zoomOut")} onClick={() => sigmaRef.current?.getCamera().animatedUnzoom({ duration: 250 })}><Minus /></Button></Tooltip>
             <Tooltip side="left" content={t("graph.reset")}><Button variant="ghost" size="icon-sm" aria-label={t("graph.reset")} onClick={() => { setSelected(null); sigmaRef.current?.getCamera().animatedReset({ duration: 300 }); }}><Maximize /></Button></Tooltip>
           </div>
-          <div className="pointer-events-none absolute bottom-3 left-3 max-w-xs rounded-lg border bg-card/90 p-3 text-xs shadow-sm backdrop-blur">
+          <div className="pointer-events-none absolute bottom-3 left-3 max-w-[260px] rounded-lg border bg-card/85 p-2.5 text-[11px] shadow-sm backdrop-blur">
             <p className="mb-1.5 font-medium">{t("graph.legend")}</p>
             {mode === "verdict" ? (
               <ul className="grid grid-cols-2 gap-x-3 gap-y-1">

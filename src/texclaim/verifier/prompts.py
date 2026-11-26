@@ -34,9 +34,10 @@ INSUFFICIENT_EVIDENCE.
 Never refer to these rules or their numbers in your explanations.
 
 Verdicts: SUPPORTED (source states or directly entails the claim), PARTIALLY_SUPPORTED (core holds \
-but overstated, missing a qualifier, rounded number, widened scope), CONTRADICTED (source states \
-the opposite or a different value), NOT_FOUND (the whole source was read and does not address the \
-claim), UNCHECKABLE (the available evidence cannot settle it).
+but overstated, missing a qualifier, widened scope), CONTRADICTED (source states the opposite or a \
+different value: a number, comparison or "more than X" that the source shows to be false is \
+CONTRADICTED, never PARTIALLY_SUPPORTED), NOT_FOUND (the whole source was read and does not \
+address the claim), UNCHECKABLE (the available evidence cannot settle it).
 Answer with JSON only."""
 
 INTERNAL_SYSTEM = """\
@@ -72,9 +73,10 @@ that no result backs.
 Never refer to these rules or their numbers in your explanations.
 
 Verdicts: SUPPORTED (the results or analysis state or directly entail it), PARTIALLY_SUPPORTED \
-(core holds but overstated, missing a qualifier, rounded or widened), CONTRADICTED (the results \
-say otherwise), NOT_FOUND (nothing in the manuscript supports it), UNCHECKABLE (not a claim that \
-needs support).
+(core holds but overstated or widened in scope), CONTRADICTED (the results say otherwise: a number \
+or comparison that the results show to be false, such as "more than 5 points" when they show 3.2, \
+is CONTRADICTED, never PARTIALLY_SUPPORTED), NOT_FOUND (nothing in the manuscript supports it), \
+UNCHECKABLE (not a claim that needs support).
 Answer with JSON only."""
 
 LANGUAGE_NAMES = {"en": "English", "es": "Spanish"}
@@ -113,7 +115,10 @@ def fix_syntax(file_path: str, bib_key: str = "") -> str:
         return (
             "plain text for a Word document: keep the citation markers exactly as in the sentence"
         )
-    return "LaTeX: keep the citation commands"
+    return (
+        "LaTeX: replace each [@key] marker with its original citation command exactly as "
+        "given in 'citation command' (e.g. \\cite{key}), with no brackets around it"
+    )
 
 
 def render_claim(unit: Unit, ev: Evidence, manuscript_language: str) -> str:

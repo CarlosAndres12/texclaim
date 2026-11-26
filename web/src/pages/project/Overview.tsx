@@ -5,7 +5,9 @@ import {
 } from "lucide-react";
 import type { Project, Verdict } from "@/lib/api";
 import { urls } from "@/lib/api";
-import { cleanClaim, formatCost, formatDate, VERDICT_COLOR, VERDICTS } from "@/lib/utils";
+import { cleanClaim, displayKey, formatCost, formatDate, VERDICT_COLOR, VERDICTS } from "@/lib/utils";
+import { Alert } from "@/components/ui/misc";
+import { Loader2 } from "lucide-react";
 import { translateNotice } from "@/lib/errors";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,6 +92,7 @@ export default function OverviewTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-6">
+      {run.running && <Alert variant="info"><Loader2 className="animate-spin" /><p>{t("overview.runningNote")}</p></Alert>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label={t("overview.claims")} value={report.run.counts.claims} icon={<Quote />} hint={`${report.units.length} ${t("overview.units").toLowerCase()}`} />
         <StatCard label={t("overview.findings")} value={s.findings} icon={<AlertTriangle />} accent={s.findings ? VERDICT_COLOR.CONTRADICTED : undefined}
@@ -138,7 +141,7 @@ export default function OverviewTab({ project }: { project: Project }) {
                         <div className="min-w-0 flex-1">
                           <p className="line-clamp-2 text-sm">{cleanClaim(f.claim_text || f.claim_latex)}</p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            <span className="font-mono">{f.file}:{f.line}</span> · {f.bib_key === "@self" ? t("findings.selfSource") : f.bib_key}
+                            <span className="font-mono">{f.file}:{f.line}</span> · {displayKey(f.bib_key, t("findings.selfSource"))}
                             {f.role ? ` · ${t(`findings.role.${f.role}`)}` : ""}
                           </p>
                         </div>

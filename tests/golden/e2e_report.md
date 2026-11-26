@@ -1,6 +1,6 @@
 # texclaim report
 
-- texclaim <VERSION> · prompt 1.2 · model(s): fake/model · run <RUN> (completed)
+- texclaim <VERSION> · prompt 1.3 · model(s): fake/model · run <RUN> (completed)
 - Run time: <TS> to <TS>
 - Cost: LLM $0.0130 (13 calls) · OpenAlex $0.00
 - Claims: 12 · checks: 17 · verified this run: 13 · reused: 4
@@ -46,14 +46,14 @@ lecun1998 · PDF page 1 · match 100 · [open](file://<PDF>#page=1)
 
 | key | OpenAlex | provider | version | status | file |
 | --- | --- | --- | --- | --- | --- |
-| caption2022 |  |  |  | NO_SOURCE |  |
-| doe2024 |  |  |  | MISSING_BIB_ENTRY |  |
-| dosovitskiy2021 | W200 | abstract |  | ABSTRACT_ONLY | [open](https://doi.org/10.48550/arxiv.2010.11929) |
-| footnoted2021 |  |  |  | NO_SOURCE |  |
-| he2016 |  |  |  | NO_SOURCE |  |
-| lecun1998 |  | local |  | FULL_TEXT | [open](file://<PDF>) |
-| smith2020 | W100 | oa_locations | publishedVersion | FULL_TEXT | [open](file://<PDF>) |
-| vaswani2017 |  | arxiv | submittedVersion | FULL_TEXT | [open](file://<PDF>) |
+| caption2022 |  |  |  | not found |  |
+| doe2024 |  |  |  | missing .bib entry |  |
+| dosovitskiy2021 | W200 | abstract |  | abstract only | [open](https://doi.org/10.48550/arxiv.2010.11929) |
+| footnoted2021 |  |  |  | not found |  |
+| he2016 |  |  |  | not found |  |
+| lecun1998 |  | your PDF |  | full text | [open](file://<PDF>) |
+| smith2020 | W100 | open-access copy | published | full text | [open](file://<PDF>) |
+| vaswani2017 |  | arXiv | preprint | full text | [open](file://<PDF>) |
 
 ## Suppressed findings
 

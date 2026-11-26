@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -60,7 +60,7 @@ function useRunEvents(pid: string): RunState {
         qc.invalidateQueries({ queryKey: ["graph", pid] });
         qc.invalidateQueries({ queryKey: ["projects"] });
       }
-      if (e.type === "done") toast.success(t("run.done"));
+      if (e.type === "done") toast.success(e.dry_run ? t("run.estimateDone") : t("run.done"));
       if (e.type === "error") toast.error(friendlyError(e.message ?? t("run.failed"), t));
     };
     const end = () => { setRunning(false); es.close(); };
@@ -139,7 +139,7 @@ export default function ProjectPage() {
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-10 w-80" /><Skeleton className="h-10 w-full" /><Skeleton className="h-96" /></div>;
   if (error instanceof ApiError && (error.status === 404 || error.status === 400)) return <NotFound />;
   if (error || !project) return <ErrorState error={error ?? "not found"} onRetry={() => refetch()} />;
-  if (tab !== "overview" && !(TABS as readonly string[]).includes(tab)) return <Navigate to={`/projects/${id}`} replace />;
+  if (tab !== "overview" && !(TABS as readonly string[]).includes(tab)) return <NotFound />;
 
   const icons: Record<TabName, React.ReactNode> = {
     overview: <LayoutDashboard />, run: <Zap />, findings: <FileSearch />, document: <FileText />,
@@ -168,7 +168,7 @@ export default function ProjectPage() {
           <div className="-mx-1 overflow-x-auto px-1 pb-1 scrollbar-thin">
             <TabsList>
               {TABS.map((k) => (
-                <TabsTrigger key={k} value={k} data-testid={`tab-${k}`}>
+                <TabsTrigger key={k} value={k} data-testid={`tab-${k}`} ref={(el) => { if (el && k === active) el.scrollIntoView({ block: "nearest", inline: "nearest" }); }}>
                   {icons[k]}
                   {t(`project.${k}`)}
                   {k === "run" && run.running && <Loader2 className="animate-spin text-primary" />}

@@ -116,9 +116,16 @@ def test_full_flow(client):
     assert {s["bib_key"] for s in src} == {"vaswani", "he"}
     assert all(s["file_kind"] == "none" for s in src)  # offline, no PDFs
     assert client.get(f"/api/projects/{pid}/sources/he/file").status_code == 404
-    up = client.post(
+    fake = client.post(
         f"/api/projects/{pid}/sources/he/pdf",
         files={"file": ("x.pdf", b"%PDF-1.4 fake", "application/pdf")},
+    )
+    assert fake.status_code == 400  # unreadable PDFs are rejected at upload
+    from fixtures.make_pdfs import make_pdf
+
+    pdf = make_pdf(["Deep residual learning for image recognition. " * 12])
+    up = client.post(
+        f"/api/projects/{pid}/sources/he/pdf", files={"file": ("x.pdf", pdf, "application/pdf")}
     )
     assert up.json()["saved"] == "papers/he.pdf"
     notpdf = client.post(
@@ -248,3 +255,10 @@ def test_word_project_survives_second_run(client):
     out = client.get(f"/api/projects/{pid}/outline").json()
     assert out["main"] == "paper.docx"
     assert {s["title"] for s in out["sections"]} >= {"Introduction", "Results", "Conclusions"}
+
+
+def test_corrupt_docx_rejected(client):
+    r = client.post(
+        "/api/projects", files={"files": ("broken.docx", b"PK\x03\x04garbage", "application/zip")}
+    )
+    assert r.status_code == 400 and "damaged" in r.json()["detail"]

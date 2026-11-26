@@ -62,6 +62,52 @@ LABELS: dict[str, dict] = {
 }  # fmt: skip
 
 
+STATUS_ES = {
+    "completed": "completada", "interrupted": "interrumpida",
+    "budget_exhausted": "presupuesto agotado",
+    "FULL_TEXT": "texto completo", "ABSTRACT_ONLY": "solo resumen", "NO_SOURCE": "no encontrada",
+    "MISSING_BIB_ENTRY": "falta la entrada .bib", "MALFORMED_BIB_ENTRY": "entrada mal formada",
+    "SOURCE_IDENTITY_MISMATCH": "documento equivocado", "SCANNED_PDF": "PDF escaneado",
+    "EXTRACTION_FAILED": "PDF ilegible",
+}  # fmt: skip
+STATUS_EN = {
+    "FULL_TEXT": "full text", "ABSTRACT_ONLY": "abstract only", "NO_SOURCE": "not found",
+    "MISSING_BIB_ENTRY": "missing .bib entry", "MALFORMED_BIB_ENTRY": "malformed entry",
+    "SOURCE_IDENTITY_MISMATCH": "wrong document", "SCANNED_PDF": "scanned PDF",
+    "EXTRACTION_FAILED": "unreadable PDF", "budget_exhausted": "budget exhausted",
+}  # fmt: skip
+PROVIDERS = {
+    "local": ("your PDF", "su PDF"), "cache": ("cached copy", "copia en caché"),
+    "openalex_content": ("OpenAlex", "OpenAlex"), "oa_locations": ("open-access copy",
+    "copia de acceso abierto"), "arxiv": ("arXiv", "arXiv"), "asta": ("Asta", "Asta"),
+    "abstract": ("abstract", "resumen"),
+}  # fmt: skip
+VERSIONS = {
+    "publishedVersion": ("published", "publicada"), "acceptedVersion": ("accepted", "aceptada"),
+    "submittedVersion": ("preprint", "preprint"),
+}  # fmt: skip
+
+
+def _status(code: str | None, es: bool) -> str:
+    if not code:
+        return ""
+    return (STATUS_ES if es else STATUS_EN).get(code, code)
+
+
+def _note(text: str, es: bool) -> str:
+    import re
+
+    if not es:
+        return text
+    m = re.match(r"internal checks: (\d+) of (\d+) uncited statements selected", text)
+    if m:
+        return f"verificaciones internas: se seleccionaron {m[1]} de {m[2]} afirmaciones sin cita"
+    m = re.match(r"(\d+) unit\(s\) were verified with another model", text)
+    if m:
+        return f"{m[1]} resultado(s) se verificaron con otro modelo y se conservaron"
+    return text
+
+
 def labels(lang: str | None) -> dict:
     return LABELS.get((lang or "en")[:2], LABELS["en"])
 
@@ -122,13 +168,14 @@ def _finding(f: dict, L: dict) -> str:
 def render_markdown(rep: dict, lang: str | None = None) -> str:
     run, c = rep["run"], rep["run"]["counts"]
     L = labels(lang or run.get("report_language"))
+    es = L is LABELS["es"]
     cov = run["source_coverage"]
     lines = [
         f"# {L['title']}",
         "",
         f"- texclaim {run['tool_version']} · prompt {run['prompt_version']} · "
         f"{L['models']}: {', '.join(run['models']) or '-'} · {L['run']} {run['run_id']} "
-        f"({run['status']})",
+        f"({_status(run['status'], es)})",
         f"- {L['time']}: {_when(run['started_at'])} {L['to']} {_when(run['finished_at'])}",
         f"- {L['cost']}: LLM ${run['llm_cost_usd']:.4f} ({run['llm_calls']} {L['calls']}) · "
         f"OpenAlex ${run['openalex_cost_usd']:.2f}",
@@ -137,7 +184,7 @@ def render_markdown(rep: dict, lang: str | None = None) -> str:
         f"- {L['sources']}: {cov['full_text']} {L['full']} · {cov['abstract_only']} "
         f"{L['abstract_only']} · {cov['none']} {L['nosrc']}",
     ]
-    lines += [f"- {L['note']}: {n}" for n in run["notes"]]
+    lines += [f"- {L['note']}: {_note(n, es)}" for n in run["notes"]]
     shown = [f for f in rep["findings"] if not f["suppressed"]]
     cited = [f for f in shown if f.get("claim_origin") != "internal"]
     concl = [f for f in shown if f.get("claim_origin") == "internal" and f.get("role")]
@@ -186,9 +233,11 @@ def render_markdown(rep: dict, lang: str | None = None) -> str:
     lines += ["", f"## {L['manifest']}", "", L["cols"], "| --- | --- | --- | --- | --- | --- |"]
     for s in rep["sources"]:
         link = f"[{L['open']}]({s['link']})" if s["link"] else ""
+        prov = PROVIDERS.get(s["provider"] or "", (s["provider"] or "",) * 2)[1 if es else 0]
+        ver = VERSIONS.get(s["version"] or "", (s["version"] or "",) * 2)[1 if es else 0]
         lines.append(
-            f"| {s['bib_key']} | {s['openalex_id'] or ''} | {s['provider'] or ''} | "
-            f"{s['version'] or ''} | {s['status']} | {link} |"
+            f"| {s['bib_key']} | {s['openalex_id'] or ''} | {prov} | "
+            f"{ver} | {_status(s['status'], es)} | {link} |"
         )
     hidden = [f for f in rep["findings"] if f["suppressed"]] + [
         i for i in rep["integrity"] if i["suppressed"]

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowRight, CheckCircle2, Circle, Loader2, Play, RefreshCw, Square, Calculator } from "lucide-react";
 import { api, type Project, type RunEvent, type Verdict } from "@/lib/api";
-import { cleanClaim, cn, formatCost } from "@/lib/utils";
+import { cleanClaim, cn, displayKey, formatCost } from "@/lib/utils";
 import { friendlyError, translateNotice } from "@/lib/errors";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ export default function RunTab({ project }: { project: Project }) {
                 <p className="text-xs text-muted-foreground">{t("run.cost", { cost: formatCost(lastCost) })}</p>
               </div>
             )}
+            {done && !isDry && Number(done.units) === 0 && <Alert variant="warning"><AlertCircle /><p>{t("run.noClaims")}</p></Alert>}
             {err && <Alert variant="destructive"><AlertCircle /><p className="break-words">{friendlyError(err.message, t)}</p></Alert>}
             {done && (
               <p className="rounded-lg bg-muted p-3 text-sm">
@@ -114,7 +115,7 @@ export default function RunTab({ project }: { project: Project }) {
                   <div className="flex min-w-0 flex-1 items-start gap-2">
                     <VerdictBadge verdict={e.verdict as Verdict} />
                     <span className="min-w-0 flex-1 truncate">{cleanClaim(String(e.text))}</span>
-                    <span className="hidden max-w-40 shrink-0 truncate font-mono text-[11px] text-muted-foreground sm:inline">{e.bib_key === "@self" ? t("findings.selfSource") : String(e.bib_key)}</span>
+                    <span className="hidden max-w-40 shrink-0 truncate font-mono text-[11px] text-muted-foreground sm:inline">{displayKey(String(e.bib_key), t("findings.selfSource"))}</span>
                   </div>
                 ) : e.type === "stage" ? (
                   <span className="font-medium">{t(`run.stage.${e.name}`, { defaultValue: String(e.name) })}</span>
@@ -125,7 +126,7 @@ export default function RunTab({ project }: { project: Project }) {
                 ) : e.type === "error" ? (
                   <span className="text-destructive">{friendlyError(e.message, t)}</span>
                 ) : e.type === "done" ? (
-                  <span className="font-medium text-supported">{t("run.done")}</span>
+                  <span className="font-medium text-supported">{isDry ? t("run.estimateDone") : t("run.done")}</span>
                 ) : e.type === "start" ? (
                   <span className="text-muted-foreground">{e.dry_run ? t("run.startedDry") : t("run.started", { model: String(e.model ?? "—") })}</span>
                 ) : null}

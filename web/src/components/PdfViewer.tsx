@@ -105,7 +105,7 @@ export function PdfViewer({ url, page = 1, quote, className }: { url: string; pa
 
   const total = doc?.numPages ?? 0;
   return (
-    <div className={`flex min-h-0 flex-col overflow-hidden rounded-xl border bg-muted/40 ${className ?? ""}`} data-testid="pdf-viewer">
+    <div className={`flex min-h-0 scroll-mt-20 flex-col overflow-hidden rounded-xl border bg-muted/40 ${className ?? ""}`} data-testid="pdf-viewer">
       <div className="flex items-center gap-1 border-b bg-card px-2 py-1.5">
         <Tooltip content={t("pdf.prev")}>
           <Button variant="ghost" size="icon-sm" aria-label={t("pdf.prev")} disabled={current <= 1} onClick={() => setCurrent((c) => c - 1)}><ChevronLeft /></Button>

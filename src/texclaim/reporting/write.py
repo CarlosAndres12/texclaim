@@ -69,6 +69,14 @@ code{background:#f6f8fa;padding:1px 4px;border-radius:4px}
 """
 
 
+def strip_local_links(text: str) -> str:
+    """Local file:// links to cached PDFs only work on this machine: drop them from exports."""
+    import re
+
+    text = re.sub(r" · \[[^\]]+\]\(file://[^)]*\)", "", text)
+    return re.sub(r"\[[^\]]+\]\(file://[^)]*\)", "", text)
+
+
 def convert_report(md_path: Path, fmt: str, out: Path | None = None) -> Path:
     """Markdown report to html or docx with pandoc."""
     import subprocess
@@ -78,12 +86,8 @@ def convert_report(md_path: Path, fmt: str, out: Path | None = None) -> Path:
     if fmt not in ("html", "docx"):
         raise ValueError(f"unsupported format: {fmt}")
     out = out or md_path.with_suffix("." + fmt)
-    import re
 
-    # Local file:// links to cached PDFs only work on this machine: drop them from exports
-    text = md_path.read_text(encoding="utf-8")
-    text = re.sub(r" · \[[^\]]+\]\(file://[^)]*\)", "", text)
-    text = re.sub(r"\[[^\]]+\]\(file://[^)]*\)", "", text)
+    text = strip_local_links(md_path.read_text(encoding="utf-8"))
     src = md_path.parent / ".texclaim" / "report_export.md"
     src.parent.mkdir(parents=True, exist_ok=True)
     src.write_text(text, encoding="utf-8")

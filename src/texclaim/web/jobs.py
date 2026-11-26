@@ -130,7 +130,7 @@ class JobManager:
                     job.emit("stage", name="graph")
                     from texclaim.graph.build import build_graph_for
 
-                    build_graph_for(folder, settings, verifier)
+                    build_graph_for(folder, settings, verifier, title=project.name)
                 except Exception as e:  # noqa: BLE001 - the graph is optional
                     job.emit("notice", message=f"knowledge graph not built: {e}")
             q = outcome.queue_result

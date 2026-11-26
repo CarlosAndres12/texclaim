@@ -175,7 +175,8 @@ export default function SettingsTab({ project }: { project: Project }) {
               options={(["auto", "en", "es"] as const).map((l) => ({ value: l, label: t(`settings.lang.${l}`) }))} />
           </Row>
           <Row label={t("settings.budget")} htmlFor="budget">
-            <Input id="budget" type="number" min={0} max={1000} step={0.5} className="w-40" value={s.max_usd} onChange={(e) => set("max_usd", Math.min(1000, Math.max(0, Number(e.target.value) || 0)))} />
+            <Input id="budget" type="number" min={0} max={1000} step={0.5} className="w-40" value={s.max_usd} onChange={(e) => { if (e.target.value !== "") set("max_usd", Math.min(1000, Math.max(0, Number(e.target.value)))); }} />
+            <p className="mt-1 text-xs text-muted-foreground">{t("settings.budgetHint")}</p>
           </Row>
           <Row label={t("settings.offline")}>
             <Switch checked={s.offline} onCheckedChange={(v) => set("offline", v)} aria-label={t("settings.offline")} />

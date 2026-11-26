@@ -229,13 +229,12 @@ def _worst(verdicts: list[str]) -> str | None:
     return None
 
 
-def build_graph_for(folder: Path, settings=None, verifier=None) -> dict:
+def build_graph_for(folder: Path, settings=None, verifier=None, title: str | None = None) -> dict:
     from texclaim.db.state_store import open_db
 
     conn = open_db(folder)
     try:
-        title = folder.name
-        g = build_graph(conn, verifier, title)
+        g = build_graph(conn, verifier, title or folder.name)
     finally:
         conn.close()
     p = graph_path(folder)

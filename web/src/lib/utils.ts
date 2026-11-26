@@ -54,6 +54,10 @@ export function cleanClaim(text: string) {
   return text.replace(/\s*\[@[^\]]*(\]|$)/g, "").trim();
 }
 
-export function displayKey(key: string, selfLabel: string) {
-  return key === "@self" ? selfLabel : key;
+/** Bib key as the author knows it: "@self" is the manuscript, "ref3" a numbered reference [3]. */
+export function displayKey(key: string | undefined | null, selfLabel: string) {
+  if (!key) return "";
+  if (key === "@self") return selfLabel;
+  const m = key.match(/^ref(\d+)$/);
+  return m ? `[${m[1]}]` : key;
 }

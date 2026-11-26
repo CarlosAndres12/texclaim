@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Copy, ExternalLink, FileSearch, MapPin, Search, SearchX, Sparkles } from "lucide-react";
 import { api, urls, type Project, type Quote, type Unit, type Verdict } from "@/lib/api";
-import { cleanClaim, cn, VERDICT_COLOR, VERDICTS } from "@/lib/utils";
+import { cleanClaim, cn, displayKey, VERDICT_COLOR, VERDICTS } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ function Field({ label, children, tone }: { label: string; children: React.React
 function QuoteCard({ q, active, onShow, canShow, self = false }: { q: Quote; active: boolean; onShow: () => void; canShow: boolean; self?: boolean }) {
   const { t } = useTranslation();
   return (
-    <figure className={cn("rounded-lg border-l-4 bg-muted/40 p-3 transition-colors", active ? "border-l-partial bg-partial/10" : "border-l-primary/40")}>
+    <figure className={cn("scroll-mt-20 rounded-lg border-l-4 bg-muted/40 p-3 transition-colors", active ? "border-l-partial bg-partial/10" : "border-l-primary/40")}>
       <blockquote className="text-sm italic leading-relaxed">“{q.text}”</blockquote>
       <figcaption className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         {self ? (q.page_label && <span>{q.page_label}</span>) : (<>
@@ -81,7 +81,7 @@ function Detail({ u, project, fileKind, index, total, onPrev, onNext }: {
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <Link to={`/projects/${project.id}/document?line=${u.line}&file=${encodeURIComponent(u.file)}`} className="font-mono hover:underline">{u.file}:{u.line}</Link>
               {u.section && <span>{u.section}</span>}
-              <span>{t("findings.key")}: <span className="font-mono">{isSelf ? t("findings.selfSource") : u.bib_key}</span></span>
+              <span>{t("findings.key")}: <span className="font-mono">{displayKey(u.bib_key, t("findings.selfSource"))}</span></span>
             </p>
           </div>
           {u.what_is_wrong && <Field label={t("findings.whatIsWrong")} tone={VERDICT_COLOR[u.verdict]}>{u.what_is_wrong}</Field>}
@@ -220,7 +220,7 @@ export default function FindingsTab({ project }: { project: Project }) {
                   <VerdictDot verdict={u.verdict} className="size-2.5" />
                   <span className="text-xs font-medium" style={{ color: VERDICT_COLOR[u.verdict] }}>{t(`verdict.${u.verdict}`)}</span>
                   {u.claim_origin === "internal" && <Sparkles className="size-3 text-muted-foreground" aria-label={t("findings.internal")} />}
-                  <span className="ml-auto truncate font-mono text-[11px] text-muted-foreground">{u.bib_key === "@self" ? t("findings.selfSource") : u.bib_key}</span>
+                  <span className="ml-auto truncate font-mono text-[11px] text-muted-foreground">{displayKey(u.bib_key, t("findings.selfSource"))}</span>
                 </div>
                 <p className="mt-1 line-clamp-2 text-sm">{cleanClaim(u.claim_text)}</p>
                 <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{u.file}:{u.line}</p>

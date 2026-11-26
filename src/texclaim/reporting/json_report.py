@@ -36,6 +36,18 @@ FIXES = {
 }
 
 
+def _clean_hint(text: str | None) -> str | None:
+    if not text:
+        return None
+    t = _smallcaps(text.strip())
+    letters = sum(ch.isalpha() for ch in t)
+    if letters < 4 or letters < 0.6 * len(t.replace(" ", "")) or len(t) > 80:
+        return None
+    if re.search(r"\b(19|20)\d\d\.", t):  # reference-list fragment
+        return None
+    return t
+
+
 def _smallcaps(text: str) -> str:
     """'7.2 T EMPORAL AVERAGING' -> '7.2 TEMPORAL AVERAGING' (PDF small caps split words)."""
     return re.sub(r"\b([A-Z]) (?=[A-Z]{2,}\b)", r"\1", text)
@@ -110,7 +122,7 @@ def build_report(
                     " AND char_end>? ORDER BY char_start DESC LIMIT 1",
                     (r["text_sha256"], q["char_start"], q["char_start"]),
                 ).fetchone()
-                hint = _smallcaps(h[0]) if h and h[0] else None
+                hint = _clean_hint(h[0]) if h else None
             quotes.append({**q, "section": hint, "link": _link(cache, r, q.get("page"))})
         reason = sup.file_reason(items, r["claim_hash"], r["bib_key"]) or sup.pragma_reason(
             paper, r["file_path"], r["line_start"], r["line_end"], r["bib_key"]

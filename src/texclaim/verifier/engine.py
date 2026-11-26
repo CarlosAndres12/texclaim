@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -170,6 +171,8 @@ async def verify_unit(
             break
         feedback = "; ".join(final.problems)
     assert out is not None and final is not None
+    if out.suggested_fix:
+        out.suggested_fix = tidy_fix(out.suggested_fix, unit.file_path)
     rec = Record(
         "llm", final.verdict, final.reason_code, ev.scope, out.citation_function, out.claim_scope,
         out.analysis, out.what_is_wrong, out.what_source_says, out.suggested_fix, out.confidence,
@@ -259,3 +262,13 @@ async def run_queue(
 
 def write_deterministic(conn: sqlite3.Connection, run_id: str, unit: Unit) -> None:
     store_result(conn, run_id, unit.unit_key, deterministic_record(unit))
+
+
+_BRACKETED_CITE = re.compile(r"\[\s*(\\[A-Za-z]*cite[A-Za-z]*\*?(?:\[[^\]]*\])*\{[^}]*\})\s*\]")
+
+
+def tidy_fix(fix: str, file_path: str) -> str:
+    """Models sometimes wrap LaTeX citation commands in brackets: '[\\cite{x}]' -> '\\cite{x}'."""
+    if file_path.endswith(".tex"):
+        fix = _BRACKETED_CITE.sub(r"\1", fix)
+    return fix

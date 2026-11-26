@@ -287,7 +287,13 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             raise HTTPException(404, "no report yet; run a check first")
         name = f"{_slug(p.name)}_texclaim_report.{fmt}"
         if fmt == "md":
-            return FileResponse(md, media_type="text/markdown", filename=name)
+            from texclaim.reporting.write import strip_local_links
+
+            return Response(
+                strip_local_links(md.read_text(encoding="utf-8")),
+                media_type="text/markdown",
+                headers={"Content-Disposition": f'attachment; filename="{name}"'},
+            )
         if fmt == "json":
             return FileResponse(p.path / REPORT_JSON, media_type="application/json", filename=name)
         if fmt in ("html", "docx"):
@@ -320,7 +326,7 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         if g is None:
             if not (p.path / ".texclaim" / "state.db").exists():
                 raise HTTPException(404, "no results yet; run a check first")
-            g = build_graph_for(p.path)
+            g = build_graph_for(p.path, title=p.name)
         return g
 
     # ---- sources -----------------------------------------------------------------------------
@@ -390,6 +396,19 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         data = await file.read()
         if not data.startswith(b"%PDF-"):
             raise HTTPException(400, "the file is not a PDF")
+        try:
+            import io as _io
+
+            from pypdf import PdfReader
+
+            reader = PdfReader(_io.BytesIO(data))
+            text = "".join((p.extract_text() or "") for p in reader.pages[:5])
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(400, "the PDF could not be read; it may be damaged") from e
+        if len(text.strip()) < 200:
+            raise HTTPException(
+                400, "the PDF has no extractable text (scanned?); texclaim cannot read it"
+            )
         from texclaim.config import load_settings
 
         d = p.path / (load_settings(p.path).pdf_dirs or ["papers"])[0]
@@ -472,8 +491,15 @@ def _manuscript_problem(folder: Path) -> str | None:
             find_root(folder, None)
         elif doc is None:
             return NO_MANUSCRIPT
+        else:
+            formats.prepare(folder, None)  # converts with pandoc: catches damaged files
     except ConfigError as e:
         msg = str(e)
+        if "pandoc failed" in msg:
+            return (
+                "The manuscript file could not be read; it may be damaged. "
+                "Open and save it again in Word (or check the Markdown) and upload it again."
+            )
         if "no root .tex" in msg:
             return NO_MANUSCRIPT
         if "several candidate" in msg:
