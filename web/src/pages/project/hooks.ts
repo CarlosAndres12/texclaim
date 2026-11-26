@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 
 export function useReport(pid: string, enabled = true) {
+  // Unchecked projects have no report: do not ask (avoids 404s)
   return useQuery({
     queryKey: ["report", pid],
     queryFn: () => api.report(pid),

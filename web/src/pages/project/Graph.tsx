@@ -87,7 +87,7 @@ function buildGraph(data: GraphData, kinds: Set<Kind>, mode: ColorMode, layout: 
       if (c === -2) c = sections.length + (a.kind === "work" ? 0 : 1 + (entityIdx++ % 3));
       const k = counts.get(c) ?? 0;
       counts.set(c, k + 1);
-      g.mergeNodeAttributes(id, { x: c * 260, y: a.kind === "section" ? 0 : -(k + 1) * 26 });
+      g.mergeNodeAttributes(id, { x: c * 200, y: a.kind === "section" ? 0 : -(k + 1) * 70 });
     });
   } else {
     circular.assign(g, { scale: 100 });
@@ -103,7 +103,7 @@ export default function GraphTab({ project }: { project: Project }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data, isLoading, error, refetch, isFetching } = useQuery({ queryKey: ["graph", project.id], queryFn: () => api.graph(project.id), retry: false });
-  const { data: report } = useReport(project.id);
+  const { data: report } = useReport(project.id, !!project.summary);
   const container = React.useRef<HTMLDivElement>(null);
   const sigmaRef = React.useRef<Sigma | null>(null);
   const [kinds, setKinds] = React.useState<Set<Kind>>(new Set(["document", "section", "claim", "work", "entity"]));
@@ -126,9 +126,9 @@ export default function GraphTab({ project }: { project: Project }) {
     graphRef.current = g;
     const sigma = new Sigma(g, container.current, {
       renderLabels: labels,
-      labelDensity: 0.35,
-      labelGridCellSize: 140,
-      stagePadding: 40,
+      labelDensity: 0.25,
+      labelGridCellSize: 160,
+      stagePadding: window.innerWidth < 640 ? 70 : 40,
       labelRenderedSizeThreshold: layout === "section" ? 12 : 7,
       labelColor: { color: dark ? "#e2e8f0" : "#1e293b" },
       labelFont: "Inter, ui-sans-serif, system-ui, sans-serif",

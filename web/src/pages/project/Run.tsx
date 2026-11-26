@@ -9,6 +9,7 @@ import { friendlyError, translateNotice } from "@/lib/errors";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, Progress } from "@/components/ui/misc";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useElapsed, VerdictBadge } from "@/components/common";
 import { useRun } from "../Project";
 
@@ -33,6 +34,8 @@ export default function RunTab({ project }: { project: Project }) {
   const elapsed = useElapsed(startEv?.t ?? null, run.running, endEv?.t ?? ev[ev.length - 1]?.t);
   const noModel = !project.settings.model && !health?.default_model;
   const logRef = React.useRef<HTMLOListElement>(null);
+  const [confirm, setConfirm] = React.useState(false);
+  const modelName = project.settings.model || health?.default_model || "—";
   React.useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" }); }, [units.length]);
 
   const state = run.running ? "running" : err ? "failed" : done ? (done.status === "interrupted" ? "cancelled" : "done") : "idle";
@@ -41,6 +44,18 @@ export default function RunTab({ project }: { project: Project }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
+      <Dialog open={confirm} onOpenChange={setConfirm}>
+        <DialogContent closeLabel={t("app.close")}>
+          <DialogHeader>
+            <DialogTitle>{t("run.confirmTitle")}</DialogTitle>
+            <DialogDescription>{t("run.confirmBody", { count: project.summary?.units ?? 0, model: modelName })}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirm(false)}>{t("app.cancel")}</Button>
+            <Button onClick={() => { setConfirm(false); run.start({ force: true }); }} data-testid="confirm-recheck">{t("project.recheckAll")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="min-w-0 space-y-6">
         <Card>
           <CardHeader>
@@ -63,11 +78,11 @@ export default function RunTab({ project }: { project: Project }) {
                 <p className="text-xs text-muted-foreground">{t("run.cost", { cost: formatCost(lastCost) })}</p>
               </div>
             )}
-            {done && !isDry && Number(done.units) === 0 && <Alert variant="warning"><AlertCircle /><p>{t("run.noClaims")}</p></Alert>}
+            {done && (Number(done.units) === 0 || Number(done.cited ?? 1) === 0) && <Alert variant="warning"><AlertCircle /><p>{Number(done.units) === 0 ? t("run.noClaims") : t("run.noCitations")}</p></Alert>}
             {err && <Alert variant="destructive"><AlertCircle /><p className="break-words">{friendlyError(err.message, t)}</p></Alert>}
             {done && (
               <p className="rounded-lg bg-muted p-3 text-sm">
-                {isDry ? t("run.estimateSummary", { queued: done.queued, reused: done.reused })
+                {isDry ? t("run.estimateSummary", { count: Number(done.queued), reused: done.reused })
                   : t("run.summary", { verified: done.verified, reused: done.reused, errors: done.errors, cost: formatCost(Number(done.cost)) })}
               </p>
             )}
@@ -77,7 +92,7 @@ export default function RunTab({ project }: { project: Project }) {
               ) : (
                 <>
                   <Button onClick={() => run.start()} disabled={run.starting || noModel} data-testid="run-start"><Play />{t("run.start")}</Button>
-                  <Button variant="outline" onClick={() => run.start({ force: true })} disabled={run.starting || noModel}><RefreshCw />{t("project.recheckAll")}</Button>
+                  <Button variant="outline" onClick={() => (project.summary ? setConfirm(true) : run.start({ force: true }))} disabled={run.starting || noModel} data-testid="recheck-all"><RefreshCw />{t("project.recheckAll")}</Button>
                   <Button variant="ghost" onClick={() => run.start({ dry_run: true })} disabled={run.starting}><Calculator />{t("project.estimate")}</Button>
                 </>
               )}

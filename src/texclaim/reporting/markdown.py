@@ -38,7 +38,7 @@ LABELS: dict[str, dict] = {
         "internal": "Coherencia interna (afirmaciones sin cita)",
         "uncheckable": "Verificaciones no concluyentes",
         "integrity": "Integridad de la bibliografía", "manifest": "Fuentes",
-        "suppressed": "Hallazgos suprimidos", "nothing": "Ninguno.",
+        "suppressed": "Hallazgos suprimidos", "nothing": "Ninguna.",
         "what_is_wrong": "Qué está mal", "what_source_says": "Qué dice la fuente",
         "analysis": "Análisis", "evidence": "Evidencia", "fix": "Corrección sugerida",
         "confidence": "Confianza", "scope": "evidencia", "model": "modelo", "note": "Nota",
@@ -88,6 +88,31 @@ VERSIONS = {
 }  # fmt: skip
 
 
+SEVERITY_ES = {"error": "error", "warning": "advertencia", "info": "info"}
+INTEGRITY_ES = {
+    "PREPRINT_EVIDENCE": "la evidencia proviene de una versión preprint",
+    "MISSING_BIB_ENTRY": "no hay una entrada .bib para esta clave",
+    "MALFORMED_BIB_ENTRY": "la entrada .bib no se puede leer",
+    "DUPLICATE_BIB_KEY": "la clave aparece varias veces en la bibliografía",
+    "MISSING_FIELDS": "a la entrada le faltan campos (título, autores o año)",
+    "DOI_MISMATCH": "el DOI declarado corresponde a otra obra",
+    "METADATA_MISMATCH": "los metadatos no coinciden con OpenAlex",
+    "DOI_AVAILABLE": "OpenAlex conoce un DOI para esta obra; agréguelo a la entrada",
+    "RETRACTED": "la obra fue retractada",
+    "SUSPICIOUS_SOURCE_TEXT": "el texto extraído de la fuente parece dañado",
+    "SOURCE_IDENTITY_MISMATCH": "el PDF encontrado no parece ser la obra citada",
+    "UNCITED_ENTRIES": "entradas de la bibliografía que no se citan",
+}  # fmt: skip
+
+
+def show_key(key: str | None) -> str:
+    """Numbered references read as [N] (the author never typed 'ref3')."""
+    import re
+
+    m = re.fullmatch(r"ref(\d+)", key or "")
+    return f"[{m[1]}]" if m else (key or "")
+
+
 def _status(code: str | None, es: bool) -> str:
     if not code:
         return ""
@@ -128,7 +153,8 @@ def _quote(q: dict, key: str, version: str | None, L: dict) -> str:
         where += f" · {q['section']}"
     where += f" · {L['match']} {q['score']:g}"
     if version:
-        where += f" · {version}"
+        es = L is LABELS["es"]
+        where += f" · {VERSIONS.get(version, (version, version))[1 if es else 0]}"
     if q.get("link"):
         where += f" · [{L['open']}]({q['link']})"
     return f'**{L["evidence"]}:** "{text}"  \n{where}'
@@ -155,7 +181,7 @@ def _finding(f: dict, L: dict) -> str:
     if f["analysis"] and not (f["what_is_wrong"] or f["what_source_says"]):
         out += ["", f"**{L['analysis']}:** {f['analysis']}"]
     for q in f["quotes"]:
-        key = L["manuscript"] if f["bib_key"] == "@self" else f["bib_key"]
+        key = L["manuscript"] if f["bib_key"] == "@self" else show_key(f["bib_key"])
         out += ["", _quote(q, key, None if f["bib_key"] == "@self" else f["source_version"], L)]
     if f["suggested_fix"]:
         out += ["", f"**{L['fix']}:** {f['suggested_fix']}"]
@@ -212,7 +238,8 @@ def render_markdown(rep: dict, lang: str | None = None) -> str:
         for u in groups[reason]:
             hint = fix.format(key=u["bib_key"], pdf_dir=rep["pdf_dir"])
             lines.append(
-                f"- `{u['file']}:{u['line']}` `{u['bib_key']}`" + (f": {hint}" if hint else "")
+                f"- `{u['file']}:{u['line']}` `{show_key(u['bib_key'])}`"
+                + (f": {hint}" if hint else "")
             )
         lines.append("")
     if not groups:
@@ -226,8 +253,10 @@ def render_markdown(rep: dict, lang: str | None = None) -> str:
             if i["file"] and i["line"]
             else (f"`{i['file']}` " if i["file"] else "")
         )
-        key = f"`{i['bib_key']}` " if i["bib_key"] else ""
-        lines.append(f"- **{i['severity']}** {i['code']} {loc}{key}{i['detail']} ({i['id']})")
+        key = f"`{show_key(i['bib_key'])}` " if i["bib_key"] else ""
+        sev = SEVERITY_ES.get(i["severity"], i["severity"]) if es else i["severity"]
+        detail = INTEGRITY_ES.get(i["code"], i["detail"]) if es else i["detail"]
+        lines.append(f"- **{sev}** {i['code']} {loc}{key}{detail} ({i['id']})")
     if not active:
         lines.append(L["nothing"])
     lines += ["", f"## {L['manifest']}", "", L["cols"], "| --- | --- | --- | --- | --- | --- |"]
@@ -236,7 +265,7 @@ def render_markdown(rep: dict, lang: str | None = None) -> str:
         prov = PROVIDERS.get(s["provider"] or "", (s["provider"] or "",) * 2)[1 if es else 0]
         ver = VERSIONS.get(s["version"] or "", (s["version"] or "",) * 2)[1 if es else 0]
         lines.append(
-            f"| {s['bib_key']} | {s['openalex_id'] or ''} | {prov} | "
+            f"| {show_key(s['bib_key'])} | {s['openalex_id'] or ''} | {prov} | "
             f"{ver} | {_status(s['status'], es)} | {link} |"
         )
     hidden = [f for f in rep["findings"] if f["suppressed"]] + [

@@ -138,6 +138,8 @@ class JobManager:
                 "status": outcome.status, "verified": q.verified, "errors": q.errors,
                 "reused": outcome.reused, "cost": round(q.cost_usd, 6),
                 "units": len(outcome.units), "queued": len(outcome.queue),
+                "cited": sum(1 for u in outcome.units if u.origin != "internal"),
+                "dry_run": dry_run,
             }  # fmt: skip
             job.state = "cancelled" if outcome.status == "interrupted" else "done"
             project = self.store.get(project.id)

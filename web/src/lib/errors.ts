@@ -13,6 +13,7 @@ export function friendlyError(raw: unknown, t: TFunction): string {
     [/several (possible main|candidate root) files?:?\s*(.*)/i, (m) => t("errors.severalMains", { files: m[2].replace(/\. Upload.*$/, "") })],
     [/already in progress/i, () => t("run.alreadyRunning")],
     [/project not found|invalid project id/i, () => t("errors.projectMissing")],
+    [/PDF could not be read/i, () => t("errors.badPdf")],
     [/damaged|pandoc failed|couldn't unpack/i, () => t("errors.damaged")],
     [/pandoc is required|pandoc not found/i, () => t("status.pandocMissing")],
     [/could not be read; it may be damaged/i, () => t("errors.badPdf")],

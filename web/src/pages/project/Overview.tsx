@@ -60,10 +60,14 @@ function Structure({ pid }: { pid: string }) {
 export default function OverviewTab({ project }: { project: Project }) {
   const { t, i18n } = useTranslation();
   const run = useRun();
-  const { data: report, isLoading, error } = useReport(project.id);
+  const { data: report, isLoading, error } = useReport(project.id, !!project.summary);
   const s = project.summary;
 
   if (isLoading) return <div className="grid gap-4 md:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28" />)}</div>;
+  if ((!report || !s) && run.running) {
+    return <EmptyState icon={<Loader2 className="animate-spin" />} title={t("run.running")} body={t("overview.firstRun")}
+      action={<Button variant="outline" asChild><Link to={`/projects/${project.id}/run`}>{t("project.run")}</Link></Button>} />;
+  }
   if (!report || isNotFound(error) || !s) {
     return (
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -97,7 +101,7 @@ export default function OverviewTab({ project }: { project: Project }) {
         <StatCard label={t("overview.claims")} value={report.run.counts.claims} icon={<Quote />} hint={`${report.units.length} ${t("overview.units").toLowerCase()}`} />
         <StatCard label={t("overview.findings")} value={s.findings} icon={<AlertTriangle />} accent={s.findings ? VERDICT_COLOR.CONTRADICTED : undefined}
           hint={VERDICTS.filter((v) => (s.finding_verdicts?.[v] ?? 0) > 0).map((v) => t(`verdictCount.${v}`, { count: s.finding_verdicts![v] })).join(" · ") || "—"} />
-        <StatCard label={t("overview.coverage")} value={`${Math.round((cov.full_text / covTotal) * 100)}%`} icon={<BookOpen />}
+        <StatCard label={t("overview.coverage")} value={cov.full_text + cov.abstract_only + cov.none ? `${Math.round((cov.full_text / covTotal) * 100)}%` : "—"} icon={<BookOpen />}
           hint={`${cov.full_text} ${t("overview.fullText").toLowerCase()} · ${cov.abstract_only} ${t("overview.abstractOnly").toLowerCase()} · ${cov.none} ${t("overview.noSource").toLowerCase()}`} />
         <StatCard label={t("overview.cost")} value={formatCost(report.run.llm_cost_usd)} icon={<CircleDollarSign />}
           hint={`${t("overview.model")}: ${report.run.models.join(", ") || "—"}`} />
@@ -131,7 +135,9 @@ export default function OverviewTab({ project }: { project: Project }) {
             </CardHeader>
             <CardContent>
               {flagged.length === 0 ? (
-                <p className="rounded-lg bg-supported/10 p-4 text-sm text-supported">{t("overview.noFindings")}</p>
+                <p className={`rounded-lg p-4 text-sm ${(s.verdicts.SUPPORTED ?? 0) === s.units && s.units > 0 ? "bg-supported/10 text-supported" : "bg-muted text-muted-foreground"}`}>
+                  {(s.verdicts.SUPPORTED ?? 0) === s.units && s.units > 0 ? t("overview.noFindings") : s.units === 0 ? t("run.noClaims") : t("overview.noFlags")}
+                </p>
               ) : (
                 <ul className="divide-y">
                   {flagged.map((f) => (

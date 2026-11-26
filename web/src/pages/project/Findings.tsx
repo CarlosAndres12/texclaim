@@ -136,7 +136,7 @@ function Detail({ u, project, fileKind, index, total, onPrev, onNext }: {
 export default function FindingsTab({ project }: { project: Project }) {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
-  const { data: report, isLoading, error, refetch } = useReport(project.id);
+  const { data: report, isLoading, error, refetch } = useReport(project.id, !!project.summary);
   const { data: sources } = useQuery({ queryKey: ["sources", project.id], queryFn: () => api.sources(project.id), enabled: !!report });
   const [query, setQuery] = React.useState("");
   const [verdicts, setVerdicts] = React.useState<Set<Verdict>>(new Set());

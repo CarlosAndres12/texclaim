@@ -173,6 +173,12 @@ async def verify_unit(
     assert out is not None and final is not None
     if out.suggested_fix:
         out.suggested_fix = tidy_fix(out.suggested_fix, unit.file_path)
+    if (
+        getattr(unit, "origin", "cited") == "internal"
+        and final.verdict == "PARTIALLY_SUPPORTED"
+        and final.reason_code == "INSUFFICIENT_EVIDENCE"
+    ):  # "partially, for lack of evidence" is not a finding: nothing contradicts it
+        final.verdict, final.reason_code = "UNCHECKABLE", "INSUFFICIENT_EVIDENCE"
     rec = Record(
         "llm", final.verdict, final.reason_code, ev.scope, out.citation_function, out.claim_scope,
         out.analysis, out.what_is_wrong, out.what_source_says, out.suggested_fix, out.confidence,

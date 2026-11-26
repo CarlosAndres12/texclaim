@@ -261,3 +261,24 @@ def test_no_horizontal_overflow(server, page: Page):
             page.wait_for_timeout(700)
             sw = page.evaluate("document.documentElement.scrollWidth")
             assert sw <= width + 1, f"{tab or 'overview'} at {width}px is {sw}px wide"
+
+
+def test_recheck_everything_asks_first(server, page: Page):
+    import httpx
+
+    pid = _create_latex_project(server)
+    httpx.put(f"{server}/api/projects/{pid}/settings", json={"model": "demo", "offline": True})
+    httpx.post(f"{server}/api/projects/{pid}/runs", json={})
+    for _ in range(100):
+        if httpx.get(f"{server}/api/projects/{pid}/runs/current").json()["state"] != "running":
+            break
+        time.sleep(0.2)
+    page.goto(f"{server}/projects/{pid}/run?lang=en")
+    page.get_by_test_id("recheck-all").click()
+    expect(page.get_by_role("dialog")).to_contain_text("Re-check everything?")
+    page.get_by_role("button", name="Cancel").click()
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    page.get_by_test_id("run-start").click()  # estimate wording is checked via a dry run below
+    expect(page.get_by_test_id("run-state")).to_have_attribute("data-state", "done", timeout=30_000)
+    page.get_by_role("button", name="Estimate (dry run)").click()
+    expect(page.get_by_test_id("run-state")).to_contain_text("Estimate finished", timeout=30_000)

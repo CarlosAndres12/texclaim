@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { BookMarked, Download, ExternalLink, Eye, FileArchive, Globe, Search, Upload } from "lucide-react";
 import { api, urls, type Project, type SourceRow, type Verdict } from "@/lib/api";
-import { cn, VERDICTS } from "@/lib/utils";
+import { cn, displayKey, VERDICTS } from "@/lib/utils";
 import { friendlyError } from "@/lib/errors";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -82,9 +82,9 @@ export default function SourcesTab({ project }: { project: Project }) {
               {rows.map((r) => (
                 <tr key={r.bib_key} className="hover:bg-muted/30">
                   <td className="max-w-[460px] px-4 py-3">
-                    <div className="font-medium leading-snug">{r.title || r.bib_key}</div>
+                    <div className="font-medium leading-snug">{r.title || displayKey(r.bib_key, "")}</div>
                     <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-                      <span className="font-mono">{r.bib_key}</span>
+                      <span className="font-mono">{displayKey(r.bib_key, "")}</span>
                       {r.authors.length > 0 && <span>{r.authors.slice(0, 3).join(", ")}{r.authors.length > 3 ? " et al." : ""}</span>}
                       {r.year && <span>{r.year}</span>}
                     </div>

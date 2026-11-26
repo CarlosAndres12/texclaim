@@ -21,7 +21,7 @@ export default function DocumentTab({ project }: { project: Project }) {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const { data: doc, isLoading, error, refetch } = useQuery({ queryKey: ["document", project.id], queryFn: () => api.document(project.id), retry: false });
-  const { data: report } = useReport(project.id);
+  const { data: report } = useReport(project.id, !!project.summary);
   const [onlyFlagged, setOnlyFlagged] = React.useState(false);
   const [openLine, setOpenLine] = React.useState<number | null>(null);
   const files = doc?.files ?? [];
