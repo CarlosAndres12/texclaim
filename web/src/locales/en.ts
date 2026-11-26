@@ -379,7 +379,9 @@ const en = {
   settings: {
     title: "Check settings",
     model: "Model",
-    modelHint: "Any LiteLLM model string. “demo” gives fake verdicts without a key.",
+    modelHint: "Any LiteLLM model string, “cli:claude” / “cli:pi” / “cli:agy” to use a logged-in agent CLI without an API key (add “/model”, e.g. cli:claude/haiku), or “demo” for fake verdicts.",
+    cliHint: "Uses your logged-in {{agent}} CLI · no API key",
+    demoHint: "Fake verdicts for trying the app · free",
     modelDefault: "Default from .env ({{model}})",
     modelNone: "Default (none configured)",
     custom: "Custom…",

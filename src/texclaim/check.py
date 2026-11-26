@@ -135,6 +135,14 @@ def make_verifier(settings: Settings, api_key: str | None = None) -> Verifier:
         from texclaim.verifier.demo import DemoVerifier
 
         return DemoVerifier()
+    if model.startswith("cli:"):
+        from texclaim.verifier.cli_agent import CliAgentVerifier
+        from texclaim.verifier.llm_client import ProviderError
+
+        try:
+            return CliAgentVerifier(model)
+        except (ValueError, ProviderError) as e:
+            raise ConfigError(str(e)) from e
     return LiteLLMVerifier(model, api_key=api_key)
 
 

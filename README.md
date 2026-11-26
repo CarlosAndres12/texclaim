@@ -89,6 +89,29 @@ export OPENALEX_API_KEY=...      # optional: free key, higher limits, full-text 
 export ASTA_API_KEY=...          # optional: Asta / Semantic Scholar, a further source of PDFs and abstracts
 ```
 
+### No API key: use an agent CLI you are logged in to
+
+If [Claude Code](https://claude.com/claude-code), pi or Antigravity (`agy`) is installed and logged
+in, texclaim can use it as the model, with no API key:
+
+```bash
+texclaim check paper --model cli:claude          # Claude Code (your subscription)
+texclaim check paper --model cli:claude/haiku    # with its --model option
+texclaim check paper --model cli:pi              # pi, with its own configured provider
+texclaim check paper --model cli:agy             # Antigravity (Gemini)
+```
+
+The web app lists the installed CLIs in Settings → Model, and `texclaim doctor` reports them.
+Each check runs the CLI once in print mode, in an empty temporary folder:
+- Claude Code and pi run with all tools disabled.
+- Antigravity cannot disable its tools, so it runs with `--sandbox --mode plan`. Prompts include
+  text from third-party papers, so prefer `cli:claude` or `cli:pi`.
+
+Costs show as $0 because these CLIs bill your subscription, not per call. For `cli:claude`,
+texclaim removes `ANTHROPIC_API_KEY` from the CLI's environment so that it uses your login; set
+`TEXCLAIM_CLI_KEEP_KEYS=1` to keep the key instead. Expect about 30 s per paper with Claude Code
+and a few minutes with Antigravity.
+
 `texclaim init <paper>` creates `<paper>/.texclaim/config.toml` and offers to request a free
 OpenAlex key. Settings resolve as CLI flag, environment, paper config, global config, default.
 **Secrets are never read from the paper config**; texclaim refuses a key-like field there. Keys

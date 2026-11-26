@@ -381,7 +381,9 @@ const es: Messages = {
   settings: {
     title: "Configuración de la verificación",
     model: "Modelo",
-    modelHint: "Cualquier modelo de LiteLLM. «demo» da veredictos ficticios sin clave.",
+    modelHint: "Cualquier modelo de LiteLLM, «cli:claude» / «cli:pi» / «cli:agy» para usar un agente de línea de comandos con sesión iniciada sin clave de API (agregue «/modelo», p. ej. cli:claude/haiku), o «demo» para veredictos ficticios.",
+    cliHint: "Usa su CLI de {{agent}} con sesión iniciada · sin clave de API",
+    demoHint: "Veredictos ficticios para probar la aplicación · gratis",
     modelDefault: "Por defecto de .env ({{model}})",
     modelNone: "Por defecto (ninguno configurado)",
     custom: "Personalizado…",

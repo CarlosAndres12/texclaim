@@ -19,6 +19,7 @@ import { Dropzone } from "@/components/common";
 import { useOutline } from "./hooks";
 
 const SCOPES = ["auto", "sentence", "two", "paragraph"] as const;
+const AGENT_NAMES: Record<string, string> = { claude: "Claude Code", pi: "pi", agy: "Antigravity" };
 
 function Row({ label, hint, htmlFor, children }: { label: string; hint?: string; htmlFor?: string; children: React.ReactNode }) {
   return (
@@ -112,7 +113,13 @@ export default function SettingsTab({ project }: { project: Project }) {
   const isCustom = custom || (!!s.model && !models.includes(s.model));
   const modelOptions = [
     { value: "__default", label: health?.default_model ? t("settings.modelDefault", { model: health.default_model }) : t("settings.modelNone") },
-    ...models.map((m) => ({ value: m, label: m })),
+    ...models.map((m) => ({
+      value: m,
+      label: m,
+      hint: m.startsWith("cli:")
+        ? t("settings.cliHint", { agent: AGENT_NAMES[m.slice(4)] ?? m.slice(4) })
+        : m === "demo" ? t("settings.demoHint") : undefined,
+    })),
     { value: "__custom", label: t("settings.custom") },
   ];
   const sections = outline?.sections ?? [];

@@ -49,6 +49,17 @@ SUGGESTED_MODELS = [
 ]  # fmt: skip
 
 
+def _cli_agents() -> list[str]:
+    from texclaim.verifier.cli_agent import available_agents
+
+    return available_agents()
+
+
+def _suggested_models() -> list[str]:
+    """demo, then logged-in agent CLIs (no API key needed), then API models."""
+    return ["demo", *[f"cli:{a}" for a in _cli_agents()], *SUGGESTED_MODELS[1:]]
+
+
 def create_app(store: ProjectStore | None = None) -> FastAPI:
     store = store or ProjectStore()
     jobs = JobManager(store)
@@ -81,7 +92,8 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             "openalex_key": bool(resolve_secret("openalex_api_key")),
             "asta_key": bool(resolve_secret("asta_api_key")),
             "pandoc": bool(shutil.which("pandoc")),
-            "suggested_models": SUGGESTED_MODELS,
+            "suggested_models": _suggested_models(),
+            "cli_agents": _cli_agents(),
         }
 
     # ---- projects ---------------------------------------------------------------------------

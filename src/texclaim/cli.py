@@ -591,12 +591,23 @@ def doctor(
         v for v in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY") if os.environ.get(v)
     ]
     line(bool(present) or None, "provider key in environment: " + (", ".join(present) or "none"))
+    from texclaim.verifier.cli_agent import available_agents
+
+    agents = available_agents()
+    line(
+        bool(agents) or None,
+        "agent CLIs (no API key needed): "
+        + (", ".join(f"cli:{a}" for a in agents) if agents else "none found (claude, pi, agy)"),
+    )
     line(
         None,
         "OpenAlex key: " + ("set" if resolve_secret("openalex_api_key") else "not set (keyless)"),
     )
     settings = load_settings(folder if folder.is_dir() else None)
-    if settings.model:
+    if settings.model and settings.model.startswith("cli:"):
+        agent = settings.model.split(":", 1)[1].split("/")[0]
+        line(agent in agents, f"model {settings.model}: runs the logged-in '{agent}' CLI")
+    elif settings.model:
         try:
             import litellm
 

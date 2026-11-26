@@ -14,6 +14,7 @@ export interface Health {
   asta_key: boolean;
   pandoc: boolean;
   suggested_models: string[];
+  cli_agents?: string[];
 }
 
 export interface WebSettings {
