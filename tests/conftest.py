@@ -12,6 +12,14 @@ def isolated_dirs(tmp_path_factory, monkeypatch):
     root = tmp_path_factory.mktemp("home")
     monkeypatch.setenv("TEXCLAIM_CONFIG_DIR", str(root / "config"))
     monkeypatch.setenv("TEXCLAIM_CACHE_DIR", str(root / "cache"))
+    import os
+
+    if os.environ.get("TEXCLAIM_LIVE_TESTS") == "1":
+        from texclaim import dotenv
+
+        dotenv.load()
+        return
+    monkeypatch.setenv("TEXCLAIM_NO_DOTENV", "1")
     for var in ("TEXCLAIM_MODEL", "OPENALEX_API_KEY"):
         monkeypatch.delenv(var, raising=False)
 

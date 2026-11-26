@@ -8,7 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from texclaim import paths
+from texclaim import formats, paths
 from texclaim.config import Settings, resolve_secret
 from texclaim.db.source_store import gc_sources
 from texclaim.db.state_store import open_db
@@ -44,7 +44,9 @@ def prepare(
     folder = folder.resolve()
     stage = on_stage or (lambda _name: None)
     stage("parse")
-    parsed = parse_manuscript(folder, settings.main, settings.extra_cite_commands)
+    fmt = formats.prepare(folder, settings.main)
+    parsed = parse_manuscript(folder, fmt.main, settings.extra_cite_commands)
+    formats.remap(fmt, parsed)
     bibdb = parse_bib_files(folder, parsed.root, parsed.bib_resources)
     cache = GlobalCache(paths.global_cache_dir(cache_dir))
     try:

@@ -38,6 +38,12 @@ def main(
     ] = False,
 ) -> None:
     """texclaim."""
+    import os
+
+    if not os.environ.get("TEXCLAIM_NO_DOTENV"):
+        from texclaim import dotenv
+
+        dotenv.load()
 
 
 def _fail(msg: str, code: int = 2) -> typer.Exit:
