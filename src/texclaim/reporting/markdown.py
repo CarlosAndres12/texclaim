@@ -1,4 +1,4 @@
-"""Markdown rendering of the report dict (PLAN §13)."""
+"""Markdown rendering of the report dict (PLAN §13), in English or Spanish."""
 
 from __future__ import annotations
 
@@ -6,82 +6,151 @@ from collections import defaultdict
 
 from texclaim.reporting.json_report import FIXES
 
-SCOPE = {"full_text": "full text", "passages": "passages", "abstract": "abstract", "none": "none"}
+LABELS: dict[str, dict] = {
+    "en": {
+        "title": "texclaim report", "findings": "Findings", "none": "No findings.",
+        "concl": "Abstract and conclusions consistency",
+        "internal": "Internal consistency (uncited statements)",
+        "uncheckable": "Uncheckable checks", "integrity": "Bibliography integrity",
+        "manifest": "Sources", "suppressed": "Suppressed findings", "nothing": "None.",
+        "what_is_wrong": "What is wrong", "what_source_says": "What the source says",
+        "analysis": "Analysis", "evidence": "Evidence", "fix": "Suggested fix",
+        "confidence": "Confidence", "scope": "evidence", "model": "model", "note": "Note",
+        "page": "PDF page", "printed": "printed", "match": "match", "open": "open",
+        "needs_review": "needs review", "uncited": "uncited statement",
+        "manuscript": "manuscript", "claim": "CLAIM", "run": "run", "models": "model(s)",
+        "time": "Run time", "to": "to", "cost": "Cost", "calls": "calls", "claims": "Claims",
+        "units": "checks", "verified": "verified this run", "reused": "reused",
+        "sources": "Sources", "full": "full text", "abstract_only": "abstract only",
+        "nosrc": "none", "n_suppressed": "suppressed",
+        "cols": "| key | OpenAlex | provider | version | status | file |",
+        "roles": {"abstract": "abstract", "conclusion": "conclusion"},
+        "scopes": {"full_text": "full text", "passages": "passages", "abstract": "abstract",
+                   "none": "none"},
+        "verdicts": {"SUPPORTED": "Supported", "PARTIALLY_SUPPORTED": "Partially supported",
+                     "CONTRADICTED": "Contradicted", "NOT_FOUND": "Not found",
+                     "UNCHECKABLE": "Uncheckable"},
+        "conf": {"low": "low", "medium": "medium", "high": "high"},
+    },
+    "es": {
+        "title": "Informe de texclaim", "findings": "Hallazgos", "none": "Sin hallazgos.",
+        "concl": "Coherencia del resumen y las conclusiones",
+        "internal": "Coherencia interna (afirmaciones sin cita)",
+        "uncheckable": "Verificaciones no concluyentes",
+        "integrity": "Integridad de la bibliografía", "manifest": "Fuentes",
+        "suppressed": "Hallazgos suprimidos", "nothing": "Ninguno.",
+        "what_is_wrong": "Qué está mal", "what_source_says": "Qué dice la fuente",
+        "analysis": "Análisis", "evidence": "Evidencia", "fix": "Corrección sugerida",
+        "confidence": "Confianza", "scope": "evidencia", "model": "modelo", "note": "Nota",
+        "page": "página del PDF", "printed": "impresa", "match": "coincidencia",
+        "open": "abrir", "needs_review": "requiere revisión", "uncited": "afirmación sin cita",
+        "manuscript": "manuscrito", "claim": "AFIRMACIÓN", "run": "ejecución",
+        "models": "modelo(s)", "time": "Ejecución", "to": "a", "cost": "Costo",
+        "calls": "llamadas", "claims": "Afirmaciones", "units": "verificaciones",
+        "verified": "verificadas en esta ejecución", "reused": "reutilizadas",
+        "sources": "Fuentes", "full": "texto completo", "abstract_only": "solo resumen",
+        "nosrc": "ninguna", "n_suppressed": "suprimidos",
+        "cols": "| clave | OpenAlex | proveedor | versión | estado | archivo |",
+        "roles": {"abstract": "resumen", "conclusion": "conclusión"},
+        "scopes": {"full_text": "texto completo", "passages": "pasajes", "abstract": "resumen",
+                   "none": "ninguna"},
+        "verdicts": {"SUPPORTED": "Respaldada", "PARTIALLY_SUPPORTED": "Parcialmente respaldada",
+                     "CONTRADICTED": "Contradicha", "NOT_FOUND": "No encontrada",
+                     "UNCHECKABLE": "No verificable"},
+        "conf": {"low": "baja", "medium": "media", "high": "alta"},
+    },
+}  # fmt: skip
 
 
-def _quote(q: dict, key: str, version: str | None) -> str:
-    where = f"{key} · PDF page {q['page']}"
+def labels(lang: str | None) -> dict:
+    return LABELS.get((lang or "en")[:2], LABELS["en"])
+
+
+def _when(iso: str | None) -> str:
+    return (iso.replace("T", " ")[:16] + " UTC") if iso else "-"
+
+
+def _quote(q: dict, key: str, version: str | None, L: dict) -> str:
+    text = q["text"].replace("\n", " ")
+    if key == L["manuscript"]:  # internal evidence: pages are the manuscript's sections
+        where = f"{key}" + (f" · {q['page_label']}" if q.get("page_label") else "")
+        return f'**{L["evidence"]}:** "{text}"  \n{where}'
+    where = f"{key} · {L['page']} {q['page']}"
     if q.get("page_label") and str(q["page_label"]) != str(q["page"]):
-        where += f" (printed {q['page_label']})"
+        where += f" ({L['printed']} {q['page_label']})"
     if q.get("section"):
         where += f" · {q['section']}"
-    where += f" · match {q['score']:g}"
+    where += f" · {L['match']} {q['score']:g}"
     if version:
         where += f" · {version}"
     if q.get("link"):
-        where += f" · [open]({q['link']})"
-    text = q["text"].replace("\n", " ")
-    return f'**Evidence:** "{text}"\n  {where}'
+        where += f" · [{L['open']}]({q['link']})"
+    return f'**{L["evidence"]}:** "{text}"  \n{where}'
 
 
-def _finding(f: dict) -> str:
+def _finding(f: dict, L: dict) -> str:
     if f["kind"] == "claim":
         return (
-            f"### {f['id']} · CLAIM · {f['file']}:{f['line']}\n> {f['claim_latex']}\n\n"
-            f"**Note:** {f['detail']}\n"
+            f"### {f['id']} · {L['claim']} · {f['file']}:{f['line']}\n\n> {f['claim_latex']}\n\n"
+            f"**{L['note']}:** {f['detail']}\n"
         )
-    title = f["verdict"] + (" · needs review" if f["needs_review"] else "")
+    title = L["verdicts"].get(f["verdict"], f["verdict"])
+    if f["needs_review"]:
+        title += f" · {L['needs_review']}"
     if f.get("claim_origin") == "internal":
-        title += " · " + (f["role"] or "uncited statement")
-    out = [f"### {f['id']} · {title} · {f['file']}:{f['line']}", f"> {f['claim_latex']}", ""]
+        title += " · " + (L["roles"].get(f["role"], f["role"]) if f["role"] else L["uncited"])
+    out = [f"### {f['id']} · {title} · {f['file']}:{f['line']}", "", f"> {f['claim_latex']}"]
     for label, k in (
-        ("What is wrong", "what_is_wrong"),
-        ("What the source says", "what_source_says"),
+        (L["what_is_wrong"], "what_is_wrong"),
+        (L["what_source_says"], "what_source_says"),
     ):
         if f[k]:
-            out.append(f"**{label}:** {f[k]}")
+            out += ["", f"**{label}:** {f[k]}"]
     if f["analysis"] and not (f["what_is_wrong"] or f["what_source_says"]):
-        out.append(f"**Analysis:** {f['analysis']}")
+        out += ["", f"**{L['analysis']}:** {f['analysis']}"]
     for q in f["quotes"]:
-        key = "manuscript" if f["bib_key"] == "@self" else f["bib_key"]
-        out.append(_quote(q, key, None if key == "manuscript" else f["source_version"]))
+        key = L["manuscript"] if f["bib_key"] == "@self" else f["bib_key"]
+        out += ["", _quote(q, key, None if f["bib_key"] == "@self" else f["source_version"], L)]
     if f["suggested_fix"]:
-        out.append(f"**Suggested fix:** {f['suggested_fix']}")
-    scope = SCOPE.get(f["evidence_scope"], f["evidence_scope"])
-    out.append(f"**Confidence:** {f['confidence'] or '-'} · scope: {scope} · model: {f['model']}")
+        out += ["", f"**{L['fix']}:** {f['suggested_fix']}"]
+    scope = L["scopes"].get(f["evidence_scope"], f["evidence_scope"])
+    conf = L["conf"].get(f["confidence"] or "", f["confidence"] or "-")
+    out += ["", f"*{L['confidence']}: {conf} · {L['scope']}: {scope} · {L['model']}: {f['model']}*"]
     return "\n".join(out) + "\n"
 
 
-def render_markdown(rep: dict) -> str:
+def render_markdown(rep: dict, lang: str | None = None) -> str:
     run, c = rep["run"], rep["run"]["counts"]
+    L = labels(lang or run.get("report_language"))
     cov = run["source_coverage"]
     lines = [
-        "# texclaim report",
+        f"# {L['title']}",
         "",
         f"- texclaim {run['tool_version']} · prompt {run['prompt_version']} · "
-        f"model(s): {', '.join(run['models']) or '-'} · run {run['run_id']} ({run['status']})",
-        f"- Run time: {run['started_at']} to {run['finished_at']}",
-        f"- Cost: LLM ${run['llm_cost_usd']:.4f} ({run['llm_calls']} calls) · "
+        f"{L['models']}: {', '.join(run['models']) or '-'} · {L['run']} {run['run_id']} "
+        f"({run['status']})",
+        f"- {L['time']}: {_when(run['started_at'])} {L['to']} {_when(run['finished_at'])}",
+        f"- {L['cost']}: LLM ${run['llm_cost_usd']:.4f} ({run['llm_calls']} {L['calls']}) · "
         f"OpenAlex ${run['openalex_cost_usd']:.2f}",
-        f"- Claims: {c['claims']} · units: {c['units']} · verified this run: "
-        f"{c['verified_this_run']} · reused: {c['reused']}",
-        f"- Sources: {cov['full_text']} full text · {cov['abstract_only']} abstract only · "
-        f"{cov['none']} none",
+        f"- {L['claims']}: {c['claims']} · {L['units']}: {c['units']} · {L['verified']}: "
+        f"{c['verified_this_run']} · {L['reused']}: {c['reused']}",
+        f"- {L['sources']}: {cov['full_text']} {L['full']} · {cov['abstract_only']} "
+        f"{L['abstract_only']} · {cov['none']} {L['nosrc']}",
     ]
-    lines += [f"- Note: {n}" for n in run["notes"]]
+    lines += [f"- {L['note']}: {n}" for n in run["notes"]]
     shown = [f for f in rep["findings"] if not f["suppressed"]]
     cited = [f for f in shown if f.get("claim_origin") != "internal"]
     concl = [f for f in shown if f.get("claim_origin") == "internal" and f.get("role")]
     other = [f for f in shown if f.get("claim_origin") == "internal" and not f.get("role")]
-    lines += ["", "## Findings", ""]
-    lines += [_finding(f) for f in cited] or ["No findings.\n"]
+    lines += ["", f"## {L['findings']}", ""]
+    lines += [_finding(f, L) for f in cited] or [L["none"] + "\n"]
     if concl or other or any(u.get("claim_origin") == "internal" for u in rep["units"]):
-        lines += ["## Abstract and conclusions consistency", ""]
-        lines += [_finding(f) for f in concl] or ["No findings.\n"]
-        lines += ["## Internal consistency (uncited statements)", ""]
-        lines += [_finding(f) for f in other] or ["No findings.\n"]
+        lines += [f"## {L['concl']}", ""]
+        lines += [_finding(f, L) for f in concl] or [L["none"] + "\n"]
+        lines += [f"## {L['internal']}", ""]
+        lines += [_finding(f, L) for f in other] or [L["none"] + "\n"]
 
-    lines += ["## Uncheckable units", ""]
+    lines += [f"## {L['uncheckable']}", ""]
     groups: dict[str, list[dict]] = defaultdict(list)
     for u in rep["units"]:
         if (
@@ -100,9 +169,9 @@ def render_markdown(rep: dict) -> str:
             )
         lines.append("")
     if not groups:
-        lines += ["None.", ""]
+        lines += [L["nothing"], ""]
 
-    lines += ["## Bibliography integrity", ""]
+    lines += [f"## {L['integrity']}", ""]
     active = [i for i in rep["integrity"] if not i["suppressed"]]
     for i in active:
         loc = (
@@ -113,11 +182,10 @@ def render_markdown(rep: dict) -> str:
         key = f"`{i['bib_key']}` " if i["bib_key"] else ""
         lines.append(f"- **{i['severity']}** {i['code']} {loc}{key}{i['detail']} ({i['id']})")
     if not active:
-        lines.append("None.")
-    header = "| key | OpenAlex | provider | version | status | file |"
-    lines += ["", "## Source manifest", "", header, "| --- | --- | --- | --- | --- | --- |"]
+        lines.append(L["nothing"])
+    lines += ["", f"## {L['manifest']}", "", L["cols"], "| --- | --- | --- | --- | --- | --- |"]
     for s in rep["sources"]:
-        link = f"[open]({s['link']})" if s["link"] else ""
+        link = f"[{L['open']}]({s['link']})" if s["link"] else ""
         lines.append(
             f"| {s['bib_key']} | {s['openalex_id'] or ''} | {s['provider'] or ''} | "
             f"{s['version'] or ''} | {s['status']} | {link} |"
@@ -125,8 +193,8 @@ def render_markdown(rep: dict) -> str:
     hidden = [f for f in rep["findings"] if f["suppressed"]] + [
         i for i in rep["integrity"] if i["suppressed"]
     ]
-    lines += ["", "## Suppressed findings", "", f"{len(hidden)} suppressed."]
+    lines += ["", f"## {L['suppressed']}", "", f"{len(hidden)} {L['n_suppressed']}."]
     for h in hidden:
-        why = h.get("suppression_reason") or "suppressed"
+        why = h.get("suppression_reason") or L["n_suppressed"]
         lines.append(f"- {h['id']}: {why}")
     return "\n".join(lines) + "\n"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from pathlib import Path
 
@@ -33,6 +34,11 @@ FIXES = {
     "OTHER": "the model could not decide; check by hand",
     "NONE": "",
 }
+
+
+def _smallcaps(text: str) -> str:
+    """'7.2 T EMPORAL AVERAGING' -> '7.2 TEMPORAL AVERAGING' (PDF small caps split words)."""
+    return re.sub(r"\b([A-Z]) (?=[A-Z]{2,}\b)", r"\1", text)
 
 
 def _link(cache: GlobalCache | None, row, page: int | None) -> str | None:
@@ -104,7 +110,7 @@ def build_report(
                     " AND char_end>? ORDER BY char_start DESC LIMIT 1",
                     (r["text_sha256"], q["char_start"], q["char_start"]),
                 ).fetchone()
-                hint = h[0] if h else None
+                hint = _smallcaps(h[0]) if h and h[0] else None
             quotes.append({**q, "section": hint, "link": _link(cache, r, q.get("page"))})
         reason = sup.file_reason(items, r["claim_hash"], r["bib_key"]) or sup.pragma_reason(
             paper, r["file_path"], r["line_start"], r["line_end"], r["bib_key"]
@@ -172,6 +178,8 @@ def build_report(
     sources = []
     cov = {"full_text": 0, "abstract_only": 0, "none": 0}
     for r in conn.execute("SELECT * FROM references_catalog ORDER BY bib_key"):
+        if r["bib_key"] == "@self":  # the manuscript itself is not a cited work
+            continue
         st = r["source_status"]
         cov[
             "full_text"

@@ -54,6 +54,10 @@ function Detail({ u, project, fileKind, index, total, onPrev, onNext }: {
   const isSelf = u.bib_key === "@self";
   const hasPdf = fileKind === "pdf" && !isSelf;
   const q = u.quotes[quoteIdx];
+  const showQuote = (i: number) => {
+    setQuoteIdx(i);
+    requestAnimationFrame(() => document.querySelector('[data-testid="pdf-viewer"]')?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  };
   const copy = async (text: string) => { await navigator.clipboard.writeText(text); toast.success(t("findings.copied")); };
 
   return (
@@ -94,7 +98,7 @@ function Detail({ u, project, fileKind, index, total, onPrev, onNext }: {
           <Field label={t("findings.evidence")}>
             {u.quotes.length ? (
               <div className="space-y-2">
-                {u.quotes.map((qq, i) => <QuoteCard key={i} q={qq} self={isSelf} active={i === quoteIdx && hasPdf} canShow={hasPdf} onShow={() => setQuoteIdx(i)} />)}
+                {u.quotes.map((qq, i) => <QuoteCard key={i} q={qq} self={isSelf} active={i === quoteIdx && hasPdf} canShow={hasPdf} onShow={() => showQuote(i)} />)}
               </div>
             ) : <p className="text-muted-foreground">{t("findings.noQuotes")}</p>}
           </Field>

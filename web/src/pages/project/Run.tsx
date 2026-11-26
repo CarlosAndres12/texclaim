@@ -29,13 +29,15 @@ export default function RunTab({ project }: { project: Project }) {
   const total = Number(plan?.queued ?? 0);
   const pct = total ? (units.length / total) * 100 : done ? 100 : 0;
   const lastCost = Number(units[units.length - 1]?.cost ?? done?.cost ?? 0);
-  const elapsed = useElapsed(startEv?.t ?? null, run.running);
+  const endEv = ev.find((e) => e.type === "done" || e.type === "error");
+  const elapsed = useElapsed(startEv?.t ?? null, run.running, endEv?.t ?? ev[ev.length - 1]?.t);
   const noModel = !project.settings.model && !health?.default_model;
   const logRef = React.useRef<HTMLOListElement>(null);
   React.useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" }); }, [units.length]);
 
   const state = run.running ? "running" : err ? "failed" : done ? (done.status === "interrupted" ? "cancelled" : "done") : "idle";
-  const title = { idle: t("run.idle"), running: t("run.running"), done: t("run.done"), failed: t("run.failed"), cancelled: t("run.cancelled") }[state];
+  const isDry = Boolean(startEv?.dry_run);
+  const title = { idle: t("run.idle"), running: t("run.running"), done: isDry ? t("run.estimateDone") : t("run.done"), failed: t("run.failed"), cancelled: t("run.cancelled") }[state];
 
   return (
     <div className="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
@@ -64,7 +66,8 @@ export default function RunTab({ project }: { project: Project }) {
             {err && <Alert variant="destructive"><AlertCircle /><p className="break-words">{friendlyError(err.message, t)}</p></Alert>}
             {done && (
               <p className="rounded-lg bg-muted p-3 text-sm">
-                {t("run.summary", { verified: done.verified, reused: done.reused, errors: done.errors, cost: formatCost(Number(done.cost)) })}
+                {isDry ? t("run.estimateSummary", { queued: done.queued, reused: done.reused })
+                  : t("run.summary", { verified: done.verified, reused: done.reused, errors: done.errors, cost: formatCost(Number(done.cost)) })}
               </p>
             )}
             <div className="flex flex-wrap gap-2">
@@ -84,7 +87,7 @@ export default function RunTab({ project }: { project: Project }) {
         <Card>
           <CardContent className="pt-5">
             <ol className="space-y-3">
-              {STAGES.map((s) => {
+              {STAGES.filter((s) => !isDry || s === "parse" || s === "resolve, download and extract").map((s) => {
                 const idx = stages.lastIndexOf(s);
                 const reached = idx >= 0;
                 const isCurrent = run.running && current === s;

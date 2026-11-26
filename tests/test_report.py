@@ -123,7 +123,7 @@ def cli(paper, cache_dir, monkeypatch, verifier=None, *extra):
 
 def normalize(text: str) -> str:
     text = re.sub(r"\b[0-9A-HJKMNP-TV-Z]{26}\b", "<RUN>", text)
-    text = re.sub(r"\d{4}-\d\d-\d\dT[\d:.]+(?:\+00:00)?", "<TS>", text)
+    text = re.sub(r"\d{4}-\d\d-\d\d(?:T[\d:.]+(?:\+00:00)?| \d\d:\d\d UTC)", "<TS>", text)
     text = re.sub(r"file://[^\s)\"#]+", "file://<PDF>", text)
     text = re.sub(r"\b[0-9a-f]{64}\b", "<SHA64>", text)
     text = re.sub(r"\b[0-9a-f]{12}:(\d+)\b", r"<SHA12>:\1", text)
@@ -157,7 +157,7 @@ def test_end_to_end_contradiction_suppression_and_rerun(paper, cache_dir, monkey
     contradicted = [f for f in rep["findings"] if f.get("verdict") == "CONTRADICTED"]
     assert len(contradicted) == 1
     fid = contradicted[0]["id"]
-    assert f"### {fid} · CONTRADICTED · sections/intro.tex:7" in md
+    assert f"### {fid} · Contradicted · sections/intro.tex:7" in md
     assert "**What is wrong:** The source reports the opposite trend." in md
 
     # a second run makes zero LLM calls and still fails the same way
@@ -212,8 +212,8 @@ def test_report_structure(paper, cache_dir):
     md, js, rep = write_reports(paper, Settings(), out, cache_dir=cache_dir)
     assert set(rep) >= {"schema_version", "run", "findings", "units", "integrity", "sources"}
     text = md.read_text()
-    order = ["## Findings", "## Uncheckable units", "## Bibliography integrity",
-             "## Source manifest", "## Suppressed findings"]  # fmt: skip
+    order = ["## Findings", "## Uncheckable checks", "## Bibliography integrity",
+             "## Sources", "## Suppressed findings"]  # fmt: skip
     assert [text.index(h) for h in order] == sorted(text.index(h) for h in order)
     u = next(x for x in rep["units"] if x["verdict"] == "CONTRADICTED")
     q = u["quotes"][0]
@@ -435,3 +435,27 @@ def test_verbose_log_redacts_secrets(tmp_path):
     text = path.read_text()
     assert "sk-abcdefghijkl" not in text and "tok123" not in text and "[redacted]" in text
     logging.getLogger("texclaim").handlers.clear()
+
+
+def test_markdown_report_in_spanish():
+    from texclaim.reporting.markdown import render_markdown
+
+    rep = {
+        "run": {"tool_version": "x", "prompt_version": "1", "models": ["m"], "run_id": "r",
+                "status": "completed", "started_at": "2026-01-01T10:00:00.1+00:00",
+                "finished_at": None, "llm_cost_usd": 0.0, "llm_calls": 0,
+                "openalex_cost_usd": 0.0, "counts": {"claims": 1, "units": 1,
+                "verified_this_run": 1, "reused": 0}, "notes": [], "report_language": "es",
+                "source_coverage": {"full_text": 1, "abstract_only": 0, "none": 0}},
+        "findings": [{"kind": "unit", "id": "F-1", "verdict": "CONTRADICTED", "needs_review": False,
+                      "claim_origin": "internal", "role": "conclusion", "file": "a.md", "line": 3,
+                      "claim_latex": "X", "what_is_wrong": "mal", "what_source_says": None,
+                      "analysis": None, "quotes": [], "suggested_fix": None, "bib_key": "@self",
+                      "evidence_scope": "full_text", "confidence": "high", "model": "m",
+                      "source_version": None, "suppressed": False}],
+        "units": [], "integrity": [], "sources": [], "pdf_dir": "papers",
+    }  # fmt: skip
+    md = render_markdown(rep)
+    assert md.startswith("# Informe de texclaim")
+    assert "### F-1 · Contradicha · conclusión · a.md:3" in md
+    assert "**Qué está mal:** mal" in md and "2026-01-01 10:00 UTC" in md

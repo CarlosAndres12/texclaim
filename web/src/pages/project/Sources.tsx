@@ -91,7 +91,7 @@ export default function SourcesTab({ project }: { project: Project }) {
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant="outline" className={cn(STATUS_TONE[r.status])}>{statusLabel(r.status)}</Badge>
-                    {r.provider && <div className="mt-1 text-[11px] text-muted-foreground">{r.provider}{r.version ? ` · ${r.version}` : ""}</div>}
+                    {r.provider && <div className="mt-1 text-[11px] text-muted-foreground">{t(`sources.provider.${r.provider}`, { defaultValue: r.provider })}{r.version ? ` · ${t(`sources.version.${r.version}`, { defaultValue: r.version })}` : ""}</div>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">

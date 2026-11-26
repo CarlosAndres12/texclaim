@@ -116,6 +116,8 @@ def plan(
             continue
         if r is None:
             queue.append(u)
+        elif r["origin"] == "llm" and r["model"] == "demo" and model not in (None, "demo"):
+            queue.append(u)  # demo verdicts are placeholders, never reused by a real model
         elif _selector_matches(selector, r, model) and (epoch is None or r["created_at"] < epoch):
             queue.append(u)
         else:
@@ -258,7 +260,7 @@ def _run_check_locked(folder, settings, verifier, opts, extractor, stop, handle_
         stale = sum(
             1 for u in units
             if (r := current_result(conn, u.unit_key)) is not None
-            and r["origin"] == "llm" and r["model"] != model
+            and r["origin"] == "llm" and r["model"] != model and r["model"] != "demo"
         )  # fmt: skip
         if stale and selector.get("recheck") != "stale-model" and not selector.get("force"):
             notices.append(

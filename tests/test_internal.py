@@ -101,7 +101,7 @@ def test_check_internal_end_to_end(tmp_path):
     write_reports(paper, settings, out)
     md = (paper / "texclaim_report.md").read_text()
     assert "## Abstract and conclusions consistency" in md
-    assert "CONTRADICTED · conclusion" in md
+    assert "Contradicted · conclusion" in md
     rep = json.loads((paper / "texclaim_report.json").read_text())
     internal = [f for f in rep["findings"] if f.get("claim_origin") == "internal"]
     assert {f["role"] for f in internal} == {"abstract", "conclusion"}
@@ -117,3 +117,25 @@ def test_cli_no_internal(tmp_path):
     assert "@self" not in r.output
     r = CliRunner().invoke(app, ["check", str(paper), "--dry-run", "--offline"])
     assert "@self" in r.output
+
+
+def test_demo_results_are_not_reused_by_a_real_model(tmp_path):
+    from texclaim.verifier.demo import DemoVerifier
+
+    paper = _paper(tmp_path)
+    settings = load_settings(paper, cli={"model": "demo", "offline": True})
+    run_check(paper, settings, DemoVerifier(delay=0), CheckOptions())
+    fake = FakeVerifier(_contradicts)
+    settings.model = "fake/model"
+    settings.internal = InternalSettings(sections=["abstract", "conclusion"])
+    out = run_check(paper, settings, fake, CheckOptions())
+    assert fake.calls == 2  # both demo verdicts re-verified
+    assert not any("another model" in n for n in out.notices)
+
+
+def test_smallcaps_section_hint():
+    from texclaim.reporting.json_report import _smallcaps
+
+    assert _smallcaps("7.2 T EMPORAL AVERAGING") == "7.2 TEMPORAL AVERAGING"
+    assert _smallcaps("1 I NTRODUCTION") == "1 INTRODUCTION"
+    assert _smallcaps("A B testing") == "A B testing"

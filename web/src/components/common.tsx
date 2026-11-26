@@ -215,7 +215,7 @@ export function Dropzone({ files, onFiles, compact = false }: { files: File[]; o
   );
 }
 
-export function useElapsed(start: number | null | undefined, running: boolean) {
+export function useElapsed(start: number | null | undefined, running: boolean, end?: number | null) {
   const [now, setNow] = React.useState(Date.now());
   React.useEffect(() => {
     if (!running) return;
@@ -223,6 +223,7 @@ export function useElapsed(start: number | null | undefined, running: boolean) {
     return () => clearInterval(id);
   }, [running]);
   if (!start) return "0:00";
-  const s = Math.max(0, Math.floor(now / 1000 - start));
+  const stop = running ? now / 1000 : end ?? start;
+  const s = Math.max(0, Math.floor(stop - start));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }

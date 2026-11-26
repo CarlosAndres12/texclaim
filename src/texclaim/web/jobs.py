@@ -112,7 +112,7 @@ class JobManager:
                 job.emit(
                     "unit", done=job.done, total=job.total, bib_key=unit.bib_key,
                     verdict=rec.verdict, file=unit.file_path, line=unit.line_start,
-                    text=unit.text_norm[:160], cost=round(job.cost, 6),
+                    text=_clean(unit.text_norm)[:160], cost=round(job.cost, 6),
                 )  # fmt: skip
 
             opts = CheckOptions(
@@ -150,3 +150,9 @@ class JobManager:
         except Exception as e:  # noqa: BLE001
             job.state, job.error = "failed", f"{type(e).__name__}: {e}"
             job.emit("error", message=job.error, trace=traceback.format_exc()[-2000:])
+
+
+def _clean(text: str) -> str:
+    import re
+
+    return " ".join(re.sub(r"\s*\[@[^\]]*\]", "", text).split())

@@ -94,6 +94,7 @@ class Prepared:
     shadow_lines: list[str] = field(default_factory=list)
     original_file: SourceFile | None = None
     unit_label: str = "line"  # line | paragraph
+    numeric_refs: bool = False  # citations came from a numbered/author-year reference list
 
 
 def _candidates(paper: Path, exts: set[str]) -> list[Path]:
@@ -235,7 +236,10 @@ def prepare(paper: Path, main: str | None) -> Prepared:
 
     shift = _title_shift(md)
     template = shadow / "template.latex"
-    template.write_text(TEMPLATE, encoding="utf-8")
+    from texclaim.text_utils import detect_language
+
+    abstract_title = "Resumen" if detect_language(_FRONT.sub("", md)[:4000]) == "es" else "Abstract"
+    template.write_text(TEMPLATE.replace("Abstract", abstract_title), encoding="utf-8")
     latex = _run(["-f", "markdown", "-t", "latex", "--biblatex", "--wrap=preserve",
                   "--template", str(template), *shift], stdin=md, cwd=doc.parent)  # fmt: skip
     embedded = _run(["-f", "markdown", "-s", "-t", "bibtex"], stdin=md, cwd=doc.parent)
@@ -266,6 +270,7 @@ def prepare(paper: Path, main: str | None) -> Prepared:
         shadow_lines=latex.splitlines(),
         original_file=SourceFile(rel, kind, hashlib.sha256(raw).hexdigest(), len(raw)),
         unit_label=label,
+        numeric_refs=converted is not None,
     )
 
 
@@ -275,7 +280,10 @@ def remap(prep: Prepared, parsed) -> None:
         return
     loc = prep.located
     last = 1
+    numeric = prep.numeric_refs
     for c in sorted(parsed.claims, key=lambda c: c.char_start):
+        # Reports show the claim in the manuscript's own syntax, not the shadow LaTeX
+        c.raw_latex = numeric_markers(c.text_norm) if numeric else c.text_norm
         start = loc.find(c.text_norm) or last
         end = loc.find(c.text_norm, from_end=True)
         c.file_path = prep.original
@@ -291,6 +299,16 @@ def remap(prep: Prepared, parsed) -> None:
             d.line = loc.find(_strip_latex(text)) if text else None
     if prep.original_file is not None:
         parsed.files.append(prep.original_file)
+
+
+def numeric_markers(text: str) -> str:
+    """[@ref3; @ref4] -> [3, 4] for manuscripts that cite a numbered reference list."""
+
+    def repl(m: re.Match) -> str:
+        keys = re.findall(r"@ref(\d+)", m.group(0))
+        return "[" + ", ".join(keys) + "]" if keys else m.group(0)
+
+    return re.sub(r"\[(?:@ref\d+(?:;\s*)?)+\]", repl, text)
 
 
 def _strip_latex(s: str) -> str:

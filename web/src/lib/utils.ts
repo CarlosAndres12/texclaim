@@ -51,7 +51,7 @@ export function formatDate(iso: string | number | null | undefined, lang: string
 
 /** Strip pandoc-style citation markers for display. */
 export function cleanClaim(text: string) {
-  return text.replace(/\s*\[@[^\]]*\]/g, "").trim();
+  return text.replace(/\s*\[@[^\]]*(\]|$)/g, "").trim();
 }
 
 export function displayKey(key: string, selfLabel: string) {

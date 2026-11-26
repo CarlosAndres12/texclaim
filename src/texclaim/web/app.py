@@ -6,6 +6,7 @@ import asyncio
 import io
 import json
 import os
+import re
 import shutil
 import zipfile
 from dataclasses import asdict
@@ -194,6 +195,8 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
         current.update({k: v for k, v in body.items() if k in current})
         try:
             ws = WebSettings(**current)
+            if not isinstance(ws.max_usd, int | float) or not 0 <= ws.max_usd <= 1000:
+                raise ValueError("the maximum cost must be between 0 and 1000 USD")
             from texclaim.config import Settings
 
             Settings.model_validate(_nest(ws.overrides()))
@@ -605,7 +608,7 @@ def _document(p: Project) -> dict:
         md = formats.docx_to_markdown(doc)
         files.append({
             "path": doc.relative_to(p.path).as_posix(), "unit": "paragraph",
-            "lines": formats._paragraphs(md),
+            "lines": [re.sub(r"^#{1,6}\s+", "", p) for p in formats._paragraphs(md)],
         })  # fmt: skip
     elif kind == "markdown" and doc is not None:
         text = doc.read_text(encoding="utf-8-sig", errors="replace")

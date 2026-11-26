@@ -7,6 +7,7 @@ Run `texclaim mcp <paper>` and register it in an MCP client, e.g.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -119,7 +120,8 @@ class GraphTools:
                                    "what_source_says", "suggested_fix", "quotes", "confidence")}
             for u in rep["units"]
             if u["file"] == node.get("file") and u["line"] == node.get("line")
-            and u["claim_text"] == node.get("text")
+            and " ".join(re.sub(r"\s*\[@[^\]]*\]", "", u["claim_text"]).split())
+            == node.get("text")
         ]  # fmt: skip
         return {**self._brief(node), "text": node.get("text"), "results": units}
 

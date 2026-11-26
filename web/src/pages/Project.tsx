@@ -86,7 +86,10 @@ function useRunEvents(pid: string): RunState {
       return api.startRun(pid, opts);
     },
     onSuccess: () => follow(),
-    onError: (e: Error) => toast.error(friendlyError(e, t)),
+    onError: (e: Error) => {
+      if (/already in progress/i.test(e.message)) follow(); // double click: just follow the run
+      else toast.error(friendlyError(e, t));
+    },
   });
   const cancelM = useMutation({ mutationFn: () => api.cancelRun(pid) });
   return {

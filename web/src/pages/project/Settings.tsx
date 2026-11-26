@@ -160,7 +160,7 @@ export default function SettingsTab({ project }: { project: Project }) {
                         <Label key={sec.title} className="font-normal">
                           <Checkbox checked={s.internal_sections.includes(sec.title)} onCheckedChange={() => toggleSection(sec.title)} />
                           <span className="truncate">{sec.title}</span>
-                          <span className="text-xs text-muted-foreground tabular-nums">{sec.internal}</span>
+                          <span className="text-xs text-muted-foreground tabular-nums" title={t("settings.sectionCount", { count: sec.internal })}>{t("settings.sectionCount", { count: sec.internal })}</span>
                         </Label>
                       ))}
                     </div>
@@ -175,7 +175,7 @@ export default function SettingsTab({ project }: { project: Project }) {
               options={(["auto", "en", "es"] as const).map((l) => ({ value: l, label: t(`settings.lang.${l}`) }))} />
           </Row>
           <Row label={t("settings.budget")} htmlFor="budget">
-            <Input id="budget" type="number" min={0} step={0.5} className="w-40" value={s.max_usd} onChange={(e) => set("max_usd", Number(e.target.value))} />
+            <Input id="budget" type="number" min={0} max={1000} step={0.5} className="w-40" value={s.max_usd} onChange={(e) => set("max_usd", Math.min(1000, Math.max(0, Number(e.target.value) || 0)))} />
           </Row>
           <Row label={t("settings.offline")}>
             <Switch checked={s.offline} onCheckedChange={(v) => set("offline", v)} aria-label={t("settings.offline")} />

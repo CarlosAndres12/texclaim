@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from texclaim.models import Unit, VerifierOutput
 from texclaim.verifier.evidence import Evidence
@@ -99,8 +100,13 @@ SCOPE_NOTES = {
 }
 
 
-def fix_syntax(file_path: str) -> str:
+def fix_syntax(file_path: str, bib_key: str = "") -> str:
     ext = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
+    if ext in ("md", "markdown", "mdown", "mkd", "docx") and re.fullmatch(r"ref\d+", bib_key):
+        return (
+            "the document's own numbered style: write [@refN] as [N] (e.g. [@ref3] -> [3]), "
+            "no LaTeX commands"
+        )
     if ext in ("md", "markdown", "mdown", "mkd"):
         return "Markdown: keep the pandoc citations exactly as [@key] (no LaTeX commands)"
     if ext == "docx":
@@ -138,7 +144,7 @@ def render_claim(unit: Unit, ev: Evidence, manuscript_language: str) -> str:
         f"postnote: {unit.postnote or '-'}",
         f"other keys cited together: {', '.join(unit.other_keys) or '-'}",
         f"evidence scope: {ev.scope}",
-        f"suggested_fix syntax: {fix_syntax(unit.file_path)}",
+        f"suggested_fix syntax: {fix_syntax(unit.file_path, unit.bib_key)}",
     ]
     return "\n".join(lines)
 

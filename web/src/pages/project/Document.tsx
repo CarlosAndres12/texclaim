@@ -117,7 +117,7 @@ export default function DocumentTab({ project }: { project: Project }) {
               ))}
             </CardContent></Card>
           ) : (
-            <Card><CardContent className="pt-5 text-sm text-muted-foreground">{byLine.size ? t("document.legend") : report ? t("document.noClaims") : t("document.empty")}</CardContent></Card>
+            <Card><CardContent className="pt-5 text-sm text-muted-foreground">{byLine.size ? t("findings.noSelection") : report ? t("document.noClaims") : t("document.empty")}</CardContent></Card>
           )}
         </div>
       </div>

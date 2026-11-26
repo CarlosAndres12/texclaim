@@ -86,7 +86,7 @@ function buildGraph(data: GraphData, kinds: Set<Kind>, mode: ColorMode, layout: 
       if (c === -2) c = sections.length + (a.kind === "work" ? 0 : 1);
       const k = counts.get(c) ?? 0;
       counts.set(c, k + 1);
-      g.mergeNodeAttributes(id, { x: c * 120, y: a.kind === "section" ? 0 : -(k + 1) * 14 });
+      g.mergeNodeAttributes(id, { x: c * 260, y: a.kind === "section" ? 0 : -(k + 1) * 26 });
     });
   } else {
     circular.assign(g, { scale: 100 });
@@ -248,7 +248,7 @@ export default function GraphTab({ project }: { project: Project }) {
           <span className="text-muted-foreground">{t("graph.show")}:</span>
           {(["section", "claim", "work", "entity"] as Kind[]).map((k) => (
             <Label key={k} className="text-xs font-normal"><Checkbox checked={kinds.has(k)} onCheckedChange={() => toggleKind(k)} />
-              <span className="size-2 rounded-full" style={{ background: KIND_HEX[k] }} />{t(`graph.kinds.${k}`)} <span className="text-muted-foreground tabular-nums">{data.stats.counts[k] ?? 0}</span>
+              <span className="size-2 rounded-full" style={{ background: k === "entity" && mode === "verdict" ? ENTITY_IN_VERDICT_MODE : k === "claim" && mode === "verdict" ? VERDICT_HEX.SUPPORTED : KIND_HEX[k] }} />{t(`graph.kinds.${k}`)} <span className="text-muted-foreground tabular-nums">{data.stats.counts[k] ?? 0}</span>
             </Label>
           ))}
         </div>
@@ -329,7 +329,7 @@ export default function GraphTab({ project }: { project: Project }) {
                   <div className="flex flex-wrap gap-1.5">
                     {data.stats.top_entities.map((e) => (
                       <button key={e.id} onClick={() => focusNode(e.id)} className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs hover:bg-accent cursor-pointer">
-                        <span className="size-2 rounded-full" style={{ background: ETYPE_HEX[e.etype] ?? KIND_HEX.entity }} />{e.label}
+                        <span className="size-2 rounded-full" style={{ background: mode === "verdict" ? ENTITY_IN_VERDICT_MODE : ETYPE_HEX[e.etype] ?? KIND_HEX.entity }} />{e.label}
                       </button>
                     ))}
                   </div>

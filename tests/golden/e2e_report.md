@@ -3,22 +3,27 @@
 - texclaim <VERSION> · prompt 1.2 · model(s): fake/model · run <RUN> (completed)
 - Run time: <TS> to <TS>
 - Cost: LLM $0.0130 (13 calls) · OpenAlex $0.00
-- Claims: 12 · units: 17 · verified this run: 13 · reused: 4
+- Claims: 12 · checks: 17 · verified this run: 13 · reused: 4
 - Sources: 3 full text · 1 abstract only · 4 none
 
 ## Findings
 
-### F-042fd455 · CONTRADICTED · sections/intro.tex:7
+### F-042fd455 · Contradicted · sections/intro.tex:7
+
 > Neural nets are used widely \cite{lecun1998}.
 
 **What is wrong:** The source reports the opposite trend.
-**What the source says:** Neural nets are rarely used.
-**Evidence:** "Gradient-Based Learning Applied to Document Recognition Yann LeCun This study reports careful measurements of widgets un"
-  lecun1998 · PDF page 1 · match 100 · [open](file://<PDF>#page=1)
-**Suggested fix:** Neural nets are used rarely \cite{lecun1998}.
-**Confidence:** high · scope: full text · model: fake/model
 
-## Uncheckable units
+**What the source says:** Neural nets are rarely used.
+
+**Evidence:** "Gradient-Based Learning Applied to Document Recognition Yann LeCun This study reports careful measurements of widgets un"  
+lecun1998 · PDF page 1 · match 100 · [open](file://<PDF>#page=1)
+
+**Suggested fix:** Neural nets are used rarely \cite{lecun1998}.
+
+*Confidence: high · evidence: full text · model: fake/model*
+
+## Uncheckable checks
 
 ### MISSING_BIB_ENTRY (1)
 - `sections/intro.tex:4` `doe2024`: add an entry for `doe2024` to your .bib file
@@ -37,7 +42,7 @@
 - **info** PREPRINT_EVIDENCE `sections/intro.tex:2` `vaswani2017` evidence taken from a preprint version (I-6922c900)
 - **info** UNKNOWN_CITE_MACRO `main.tex:3` \mycite wraps a citation command; registered as a citation macro (I-e352ce15)
 
-## Source manifest
+## Sources
 
 | key | OpenAlex | provider | version | status | file |
 | --- | --- | --- | --- | --- | --- |

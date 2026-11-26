@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -120,8 +121,9 @@ def build_graph(conn: sqlite3.Connection, verifier=None, title: str = "Manuscrip
         cid = f"claim:{c['claim_pk']}"
         rows = by_claim[c["claim_pk"]]
         verdicts = [r["verdict"] for r in rows if r["verdict"]]
+        clean = " ".join(re.sub(r"\s*\[@[^\]]*\]", "", c["text_norm"]).split())
         g.add_node(
-            cid, kind="claim", label=c["text_norm"][:90], text=c["text_norm"],
+            cid, kind="claim", label=clean[:90], text=clean,
             origin=c["origin"], role=c["role"], file=c["file_path"], line=c["line_start"],
             section=c["section_path"] or "", verdict=_worst(verdicts),
         )  # fmt: skip
