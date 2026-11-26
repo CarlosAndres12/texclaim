@@ -208,8 +208,10 @@ def select_units(
     if not internal:
         return units, {"candidates": 0, "kept": 0, "cost": 0.0}
     chosen = [u for u in internal if section_selected(u.section_path, u.role, settings.sections)]
-    decisions, cost = asyncio.run(screen(conn, [u.text_norm for u in chosen], settings, verifier))
-    kept = [u for u in chosen if decisions.get(u.text_norm)]
+    # Abstract and conclusion statements are always checked; the body is screened
+    body = [u for u in chosen if not u.role]
+    decisions, cost = asyncio.run(screen(conn, [u.text_norm for u in body], settings, verifier))
+    kept = [u for u in chosen if u.role or decisions.get(u.text_norm)]
     kept.sort(key=lambda u: (_ROLE_RANK.get(u.role, 2), u.order))
     kept = kept[: settings.max_claims]
     keep_keys = {u.unit_key for u in kept}

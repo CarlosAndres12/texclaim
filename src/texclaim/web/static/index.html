@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>texclaim</title>
+    <script>
+      (function () {
+        var t = localStorage.getItem("texclaim-theme");
+        if (t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches))
+          document.documentElement.classList.add("dark");
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-uMR68qM2.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CiWDaD_q.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

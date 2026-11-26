@@ -116,11 +116,21 @@ def insert_catalog(
                 e and e.doi, e and e.arxiv_id, e and e.pmid,
                 w and w.openalex_id, w and w.title, w and w.year,
                 int(w.is_retracted) if w else None,
-                r.status, r.provider, r.version, r.blob_sha256, None, r.text_sha256,
+                r.status, r.provider, r.version, r.blob_sha256 or _failed_blob(r), None,
+                r.text_sha256,
                 r.language or (w and w.language),
                 json.dumps({"trail": r.trail, "failures": r.failures}), now,
             ),
         )  # fmt: skip
+
+
+def _failed_blob(r: SourceResult) -> str | None:
+    """A PDF that was found but rejected (scanned, wrong document): kept so users can open it."""
+    if r.status in ("SCANNED_PDF", "SOURCE_IDENTITY_MISMATCH", "EXTRACTION_FAILED"):
+        for f in r.failures:
+            if f.get("code") == r.status and f.get("sha256"):
+                return f["sha256"]
+    return None
 
 
 def missing_source_checklist(
