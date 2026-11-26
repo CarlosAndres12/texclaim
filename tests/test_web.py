@@ -262,3 +262,47 @@ def test_corrupt_docx_rejected(client):
         "/api/projects", files={"files": ("broken.docx", b"PK\x03\x04garbage", "application/zip")}
     )
     assert r.status_code == 400 and "damaged" in r.json()["detail"]
+
+
+def test_config_api_never_returns_secrets(client, tmp_path, monkeypatch):
+    env = tmp_path / "test.env"
+    env.write_text("# my comment\nOPENAI_API_KEY=old\n")
+    monkeypatch.setenv("TEXCLAIM_ENV_FILE", str(env))
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    r = client.put(
+        "/api/config",
+        json={"values": {"OPENAI_API_KEY": "sk-secret-123", "TEXCLAIM_MODEL": "cli:claude"}},
+    )
+    assert r.status_code == 200
+    assert "sk-secret-123" not in r.text
+    assert r.json()["secrets"]["OPENAI_API_KEY"]["set"] is True
+    assert r.json()["settings"]["TEXCLAIM_MODEL"]["value"] == "cli:claude"
+    text = env.read_text()
+    assert "# my comment" in text and "OPENAI_API_KEY=sk-secret-123" in text
+    assert oct(env.stat().st_mode)[-3:] == "600"
+    assert client.get("/api/health").json()["default_model"] == "cli:claude"
+    r = client.put("/api/config", json={"values": {"OPENAI_API_KEY": None}})
+    assert r.json()["secrets"]["OPENAI_API_KEY"]["set"] is False
+    assert client.put("/api/config", json={"values": {"EVIL": "x"}}).status_code == 400
+    bad = client.put("/api/config", json={"values": {"TEXCLAIM_CLAIM_SCOPE": "huge"}})
+    assert bad.status_code == 400
+    import os
+
+    os.environ.pop("TEXCLAIM_MODEL", None)
+
+
+def test_config_test_demo_and_advanced_settings(client):
+    r = client.post("/api/config/test", json={"target": "model", "model": "demo"})
+    assert r.json()["ok"] is True
+    pid = client.post("/api/projects", files={"files": ("paper.zip", _zip(), "application/zip")})
+    pid = pid.json()["id"]
+    s = client.put(
+        f"/api/projects/{pid}/settings",
+        json={"model": "demo", "offline": True, "evidence_strategy": "passages",
+              "source_order": ["local", "arxiv"], "concurrency": 2, "pdf_dirs": ["pdfs"]},
+    ).json()  # fmt: skip
+    assert s["evidence_strategy"] == "passages" and s["source_order"] == ["local", "arxiv"]
+    bad = client.put(f"/api/projects/{pid}/settings", json={"evidence_strategy": "magic"})
+    assert bad.status_code == 400
+    cfg = client.get("/api/config").json()
+    assert "local" in cfg["defaults"]["source_order"]

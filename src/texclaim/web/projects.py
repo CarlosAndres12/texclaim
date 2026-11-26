@@ -50,6 +50,18 @@ class WebSettings:
     max_usd: float = 5.0
     main: str | None = None
     offline: bool = False
+    # Advanced (None = texclaim default)
+    evidence_strategy: str | None = None  # auto | full | passages
+    full_text_max_tokens: int | None = None
+    passage_budget_tokens: int | None = None
+    concurrency: int | None = None
+    source_order: list[str] | None = None
+    openalex_max_usd: float | None = None
+    arxiv_max_downloads: int | None = None
+    pdf_dirs: list[str] | None = None
+    extra_cite_commands: list[str] | None = None
+    internal_max_claims: int | None = None
+    screening: str | None = None  # auto | llm | heuristic | none
 
     def overrides(self) -> dict:
         out = {
@@ -60,6 +72,20 @@ class WebSettings:
             "budget.max_llm_usd_per_run": self.max_usd,
             "offline": self.offline or None,
         }
+        advanced = {
+            "evidence.strategy": self.evidence_strategy,
+            "evidence.full_text_max_tokens": self.full_text_max_tokens,
+            "evidence.passage_budget_tokens": self.passage_budget_tokens,
+            "budget.concurrency": self.concurrency,
+            "sources.order": self.source_order,
+            "sources.openalex_max_usd_per_run": self.openalex_max_usd,
+            "sources.arxiv_max_downloads_per_run": self.arxiv_max_downloads,
+            "pdf_dirs": self.pdf_dirs,
+            "extra_cite_commands": self.extra_cite_commands,
+            "internal.max_claims": self.internal_max_claims,
+            "internal.screening": self.screening,
+        }
+        out.update({k: v for k, v in advanced.items() if v is not None})
         if self.model:
             out["model"] = self.model
         if self.main:

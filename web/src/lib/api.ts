@@ -17,6 +17,33 @@ export interface Health {
   cli_agents?: string[];
 }
 
+export interface GlobalConfig {
+  file: string;
+  secrets: Record<string, { label: string; set: boolean; from_environment: boolean }>;
+  settings: Record<string, { label: string; value: string }>;
+  cli_agents: { name: string; installed: boolean }[];
+  suggested_models: string[];
+  defaults: {
+    source_order: string[];
+    evidence_strategy: string;
+    full_text_max_tokens: number;
+    passage_budget_tokens: number;
+    concurrency: number;
+    openalex_max_usd: number;
+    arxiv_max_downloads: number;
+    pdf_dirs: string[];
+    internal_max_claims: number;
+    screening: string;
+  };
+}
+
+export interface TestResult {
+  ok: boolean;
+  seconds: number;
+  reply?: string;
+  error?: string;
+}
+
 export interface WebSettings {
   model: string | null;
   claim_scope: "auto" | "sentence" | "two" | "paragraph";
@@ -26,6 +53,17 @@ export interface WebSettings {
   max_usd: number;
   main: string | null;
   offline: boolean;
+  evidence_strategy?: string | null;
+  full_text_max_tokens?: number | null;
+  passage_budget_tokens?: number | null;
+  concurrency?: number | null;
+  source_order?: string[] | null;
+  openalex_max_usd?: number | null;
+  arxiv_max_downloads?: number | null;
+  pdf_dirs?: string[] | null;
+  extra_cite_commands?: string[] | null;
+  internal_max_claims?: number | null;
+  screening?: string | null;
 }
 
 export interface Summary {
@@ -266,6 +304,11 @@ const json = (method: string, body: unknown): RequestInit => ({
 
 export const api = {
   health: () => req<Health>("/api/health"),
+  config: () => req<GlobalConfig>("/api/config"),
+  saveConfig: (values: Record<string, string | null>) =>
+    req<GlobalConfig>("/api/config", json("PUT", { values })),
+  testConfig: (body: { target: "model" | "openalex" | "asta"; model?: string }) =>
+    req<TestResult>("/api/config/test", json("POST", body)),
   projects: () => req<Project[]>("/api/projects"),
   project: (id: string) => req<Project>(`/api/projects/${id}`),
   createProject: (files: File[], name: string) => {

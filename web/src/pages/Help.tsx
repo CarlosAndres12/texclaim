@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ShieldAlert, Terminal } from "lucide-react";
+import { Bot, Settings, ShieldAlert, Terminal, Wrench } from "lucide-react";
 import type { Verdict } from "@/lib/api";
 import { VERDICTS } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +34,27 @@ export default function HelpPage() {
               </li>
             ))}
           </ol>
+        </CardContent>
+      </Card>
+      <Card id="setup" className="scroll-mt-20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Wrench className="size-4" />{t("help.setupTitle")}</CardTitle>
+          <p className="text-sm text-muted-foreground">{t("help.setupIntro")}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed">
+            {(t("help.setupSteps", { returnObjects: true }) as string[]).map((s, i) => <li key={i}>{s}</li>)}
+          </ol>
+          <Button asChild><Link to="/settings"><Settings />{t("config.title")}</Link></Button>
+          <div className="rounded-lg border bg-muted/40 p-3">
+            <p className="flex items-center gap-2 text-sm font-medium"><Bot className="size-4" />{t("help.agentsTitle")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("help.agentsBody")}</p>
+            <pre className="mt-2 overflow-auto rounded-md bg-background p-3 font-mono text-xs leading-relaxed">{`texclaim config show --json          # what is configured (no secret values)
+texclaim config set TEXCLAIM_MODEL=cli:claude
+texclaim config set ANTHROPIC_API_KEY  # prompts without echo
+texclaim config test                   # tiny request to the model
+curl -s localhost:8765/api/config      # same over HTTP (GET / PUT)`}</pre>
+          </div>
         </CardContent>
       </Card>
       <Card>

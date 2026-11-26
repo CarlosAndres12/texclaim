@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -69,6 +70,113 @@ function FilesCard({ project }: { project: Project }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+const PROVIDERS = ["local", "cache", "openalex_content", "oa_locations", "arxiv", "asta", "abstract"];
+
+function NumberField({ value, placeholder, onChange, min = 0, max, step = 1, label }: {
+  value: number | null | undefined; placeholder: number | string; onChange: (v: number | null) => void;
+  min?: number; max?: number; step?: number; label: string;
+}) {
+  return (
+    <Input type="number" className="w-40" min={min} max={max} step={step} aria-label={label}
+      value={value ?? ""} placeholder={String(placeholder)}
+      onChange={(e) => onChange(e.target.value === "" ? null : Math.max(min, Math.min(max ?? Infinity, Number(e.target.value))))} />
+  );
+}
+
+function ListField({ value, placeholder, onChange, label }: {
+  value: string[] | null | undefined; placeholder: string; onChange: (v: string[] | null) => void; label: string;
+}) {
+  const [text, setText] = React.useState((value ?? []).join(", "));
+  React.useEffect(() => setText((value ?? []).join(", ")), [value]);
+  return (
+    <Input className="font-mono" aria-label={label} value={text} placeholder={placeholder}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => { const items = text.split(",").map((x) => x.trim()).filter(Boolean); onChange(items.length ? items : null); }} />
+  );
+}
+
+function Advanced({ s, set }: { s: WebSettings; set: <K extends keyof WebSettings>(k: K, v: WebSettings[K]) => void }) {
+  const { t } = useTranslation();
+  const { data: cfg } = useQuery({ queryKey: ["config"], queryFn: api.config, staleTime: 60_000 });
+  const d = cfg?.defaults;
+  const order = s.source_order ?? d?.source_order ?? PROVIDERS;
+  const move = (i: number, dir: -1 | 1) => {
+    const next = [...order];
+    const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    set("source_order", next);
+  };
+  const toggle = (p: string) =>
+    set("source_order", order.includes(p) ? order.filter((x) => x !== p) : [...order, p]);
+  const off = PROVIDERS.filter((p) => !order.includes(p));
+  return (
+    <details className="group rounded-lg border" data-testid="advanced">
+      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium select-none">
+        <span className="mr-2 inline-block transition-transform group-open:rotate-90">›</span>{t("advanced.title")}
+        <span className="ml-2 text-xs font-normal text-muted-foreground">{t("advanced.hint")}</span>
+      </summary>
+      <div className="divide-y border-t px-4">
+        <Row label={t("advanced.evidence")} hint={t("advanced.evidenceHint")}>
+          <div className="w-64"><Select ariaLabel={t("advanced.evidence")} value={s.evidence_strategy ?? "__default"}
+            onValueChange={(v) => set("evidence_strategy", v === "__default" ? null : v)}
+            options={[{ value: "__default", label: t("advanced.default", { value: d?.evidence_strategy ?? "auto" }) },
+              ...["auto", "full", "passages"].map((v) => ({ value: v, label: t(`advanced.strategy.${v}`) }))]} /></div>
+        </Row>
+        <Row label={t("advanced.fullMax")} hint={t("advanced.fullMaxHint")}>
+          <NumberField label={t("advanced.fullMax")} value={s.full_text_max_tokens} placeholder={d?.full_text_max_tokens ?? 60000} step={1000} min={2000} onChange={(v) => set("full_text_max_tokens", v)} />
+        </Row>
+        <Row label={t("advanced.passages")} hint={t("advanced.passagesHint")}>
+          <NumberField label={t("advanced.passages")} value={s.passage_budget_tokens} placeholder={d?.passage_budget_tokens ?? 8000} step={500} min={500} onChange={(v) => set("passage_budget_tokens", v)} />
+        </Row>
+        <Row label={t("advanced.concurrency")} hint={t("advanced.concurrencyHint")}>
+          <NumberField label={t("advanced.concurrency")} value={s.concurrency} placeholder={d?.concurrency ?? 4} min={1} max={16} onChange={(v) => set("concurrency", v)} />
+        </Row>
+        <Row label={t("advanced.sources")} hint={t("advanced.sourcesHint")}>
+          <ol className="space-y-1" data-testid="source-order">
+            {order.map((p, i) => (
+              <li key={p} className="flex items-center gap-2 rounded-md border bg-card px-2 py-1 text-sm">
+                <Checkbox checked onCheckedChange={() => toggle(p)} aria-label={`${t("advanced.disable")} ${p}`} />
+                <span className="flex-1">{t(`sources.provider.${p}`, { defaultValue: p })}</span>
+                <Button variant="ghost" size="icon-sm" disabled={i === 0} onClick={() => move(i, -1)} aria-label={t("advanced.up")}>↑</Button>
+                <Button variant="ghost" size="icon-sm" disabled={i === order.length - 1} onClick={() => move(i, 1)} aria-label={t("advanced.down")}>↓</Button>
+              </li>
+            ))}
+            {off.map((p) => (
+              <li key={p} className="flex items-center gap-2 rounded-md border border-dashed px-2 py-1 text-sm text-muted-foreground">
+                <Checkbox checked={false} onCheckedChange={() => toggle(p)} aria-label={`${t("advanced.enable")} ${p}`} />
+                <span className="flex-1 line-through">{t(`sources.provider.${p}`, { defaultValue: p })}</span>
+              </li>
+            ))}
+          </ol>
+          {s.source_order && <Button variant="link" size="sm" className="px-0" onClick={() => set("source_order", null)}>{t("advanced.reset")}</Button>}
+        </Row>
+        <Row label={t("advanced.openalexBudget")} hint={t("advanced.openalexBudgetHint")}>
+          <NumberField label={t("advanced.openalexBudget")} value={s.openalex_max_usd} placeholder={d?.openalex_max_usd ?? 0.5} step={0.1} onChange={(v) => set("openalex_max_usd", v)} />
+        </Row>
+        <Row label={t("advanced.arxivMax")} hint={t("advanced.arxivMaxHint")}>
+          <NumberField label={t("advanced.arxivMax")} value={s.arxiv_max_downloads} placeholder={d?.arxiv_max_downloads ?? 30} onChange={(v) => set("arxiv_max_downloads", v)} />
+        </Row>
+        <Row label={t("advanced.pdfDirs")} hint={t("advanced.pdfDirsHint")}>
+          <ListField label={t("advanced.pdfDirs")} value={s.pdf_dirs} placeholder={(d?.pdf_dirs ?? ["papers"]).join(", ")} onChange={(v) => set("pdf_dirs", v)} />
+        </Row>
+        <Row label={t("advanced.citeCommands")} hint={t("advanced.citeCommandsHint")}>
+          <ListField label={t("advanced.citeCommands")} value={s.extra_cite_commands} placeholder="mycite, citeauthoryear" onChange={(v) => set("extra_cite_commands", v)} />
+        </Row>
+        <Row label={t("advanced.screening")} hint={t("advanced.screeningHint")}>
+          <div className="w-64"><Select ariaLabel={t("advanced.screening")} value={s.screening ?? "__default"}
+            onValueChange={(v) => set("screening", v === "__default" ? null : v)}
+            options={[{ value: "__default", label: t("advanced.default", { value: d?.screening ?? "auto" }) },
+              ...["auto", "llm", "heuristic", "none"].map((v) => ({ value: v, label: t(`advanced.screen.${v}`) }))]} /></div>
+        </Row>
+        <Row label={t("advanced.maxInternal")} hint={t("advanced.maxInternalHint")}>
+          <NumberField label={t("advanced.maxInternal")} value={s.internal_max_claims} placeholder={d?.internal_max_claims ?? 150} onChange={(v) => set("internal_max_claims", v)} />
+        </Row>
+      </div>
+    </details>
   );
 }
 
@@ -188,6 +296,7 @@ export default function SettingsTab({ project }: { project: Project }) {
           <Row label={t("settings.offline")}>
             <Switch checked={s.offline} onCheckedChange={(v) => set("offline", v)} aria-label={t("settings.offline")} />
           </Row>
+          <div className="py-4"><Advanced s={s} set={set} /></div>
           {outline && (
             <Row label={t("settings.mainFile")} htmlFor="main">
               <Input id="main" className="font-mono" placeholder={`${t("settings.mainAuto")} (${outline.main})`} value={s.main ?? ""} onChange={(e) => set("main", e.target.value || null)} />
@@ -197,7 +306,7 @@ export default function SettingsTab({ project }: { project: Project }) {
       </Card>
       <div className="space-y-6">
         <FilesCard project={project} />
-        <Alert variant="info"><KeyRound /><div><p className="font-medium">{t("settings.keysTitle")}</p><p className="mt-1 text-xs">{t("settings.keysBody")}</p></div></Alert>
+        <Alert variant="info"><KeyRound /><div><p className="font-medium">{t("settings.keysTitle")}</p><p className="mt-1 text-xs">{t("settings.keysBody")}</p><Link to="/settings" className="mt-2 inline-block text-xs font-medium underline">{t("config.manage")}</Link></div></Alert>
       </div>
     </div>
   );

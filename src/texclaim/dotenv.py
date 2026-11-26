@@ -31,6 +31,9 @@ def candidates() -> list[Path]:
     env = os.environ.get("TEXCLAIM_ENV_FILE")
     paths = [Path(env)] if env else []
     paths += [Path.cwd() / ".env", REPO_ROOT / ".env"]
+    from texclaim.paths import global_config_dir
+
+    paths.append(global_config_dir() / ".env")  # written by `texclaim config` on regular installs
     seen: list[Path] = []
     for p in paths:
         r = p.resolve()

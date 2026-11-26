@@ -96,6 +96,64 @@ def create_app(store: ProjectStore | None = None) -> FastAPI:
             "cli_agents": _cli_agents(),
         }
 
+    # ---- global configuration (keys never leave the server) ------------------------------------
+    @app.get("/api/config")
+    def get_config() -> dict:
+        from texclaim import envconfig
+        from texclaim.config import Settings
+
+        d = envconfig.describe()
+        defaults = Settings()
+        return {
+            **d,
+            "cli_agents": [
+                {"name": a, "installed": bool(shutil.which(a))} for a in ("claude", "pi", "agy")
+            ],
+            "suggested_models": _suggested_models(),
+            "defaults": {
+                "source_order": defaults.sources.order,
+                "evidence_strategy": defaults.evidence.strategy,
+                "full_text_max_tokens": defaults.evidence.full_text_max_tokens,
+                "passage_budget_tokens": defaults.evidence.passage_budget_tokens,
+                "concurrency": defaults.budget.concurrency,
+                "openalex_max_usd": defaults.sources.openalex_max_usd_per_run,
+                "arxiv_max_downloads": defaults.sources.arxiv_max_downloads_per_run,
+                "pdf_dirs": defaults.pdf_dirs,
+                "internal_max_claims": defaults.internal.max_claims,
+                "screening": defaults.internal.screening,
+            },
+        }
+
+    @app.put("/api/config")
+    def put_config(body: Annotated[dict, Body()]) -> dict:
+        """{"values": {"ANTHROPIC_API_KEY": "sk-...", "TEXCLAIM_MODEL": "cli:claude", "X": null}}"""
+        from texclaim import envconfig
+
+        values = body.get("values") or {}
+        if not isinstance(values, dict):
+            raise HTTPException(400, "values must be an object")
+        try:
+            envconfig.write({str(k): (None if v is None else str(v)) for k, v in values.items()})
+        except envconfig.ConfigValueError as e:
+            raise HTTPException(400, str(e)) from e
+        return get_config()
+
+    @app.post("/api/config/test")
+    async def test_config(body: Annotated[dict, Body()]) -> dict:
+        """Body: {"target": "model", "model": "cli:claude"}, {"target": "openalex"} or "asta"."""
+        from texclaim import model_test
+        from texclaim.config import load_settings, resolve_secret
+
+        target = body.get("target", "model")
+        if target == "openalex":
+            return await model_test.test_openalex(resolve_secret("openalex_api_key"))
+        if target == "asta":
+            return await model_test.test_asta(resolve_secret("asta_api_key"))
+        model = body.get("model") or load_settings(None).model
+        if not model:
+            return {"ok": False, "seconds": 0, "error": "No model chosen"}
+        return await model_test.test_model(str(model))
+
     # ---- projects ---------------------------------------------------------------------------
     @app.get("/api/projects")
     def projects() -> list[dict]:

@@ -10,6 +10,9 @@ texclaim check path/to/paper        # command line
 texclaim serve --open               # web app at http://127.0.0.1:8765
 ```
 
+**Guides:** [docs/GUIDE.md](docs/GUIDE.md) (English), [docs/GUIA.md](docs/GUIA.md) (español),
+[AGENTS.md](AGENTS.md) (for AI agents that set texclaim up for you).
+
 ## Web app
 
 `texclaim serve` starts a local web app (no login, bound to 127.0.0.1). Create a project by
@@ -28,6 +31,13 @@ model, claim length and which sections to check, then run. Results update live. 
   (methods, datasets, metrics, results), coloured by verdict, with search, layouts and PNG/JSON export.
 
 The UI language follows the browser and can be switched (EN/ES); there are light and dark themes.
+
+**Settings** (top bar) configures everything without editing files: the default model, agent CLIs
+(test or use one as default), API keys (write-only: the browser never receives them), OpenAlex and
+Asta keys, contact email, and defaults for language, claim length and budget. Each project has its
+own settings with an **Advanced** section: evidence, token limits, parallel checks, source order,
+download limits, PDF folders, citation macros and screening. The same configuration is available as
+`texclaim config show|set|unset|test` and over HTTP (`/api/config`).
 
 ## Formats
 

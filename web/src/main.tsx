@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/misc";
 import HomePage from "@/pages/Home";
 import ProjectPage from "@/pages/Project";
 import HelpPage from "@/pages/Help";
+import GlobalSettingsPage from "@/pages/GlobalSettings";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
       { path: "/", element: <HomePage /> },
       { path: "/projects/:id/:tab?", element: <ProjectPage /> },
       { path: "/help", element: <HelpPage /> },
+      { path: "/settings", element: <GlobalSettingsPage /> },
       { path: "*", element: <NotFound /> },
     ],
   },

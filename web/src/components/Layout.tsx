@@ -2,7 +2,7 @@ import * as React from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpenCheck, CircleHelp, KeyRound, Languages, Monitor, Moon, Sun } from "lucide-react";
+import { BookOpenCheck, CircleHelp, KeyRound, Languages, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,7 @@ function HealthMenu() {
         ))}
         {!data.pandoc && (<><DropdownMenuSeparator /><p className="px-2 py-1 text-xs text-partial">{t("status.pandocMissing")}</p></>)}
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild><Link to="/settings"><KeyRound />{t("config.manage")}</Link></DropdownMenuItem>
         <p className="px-2 py-1 text-[11px] text-muted-foreground">texclaim {data.version}</p>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -118,6 +119,7 @@ export function Layout() {
           </Link>
           <nav className="flex items-center gap-1">
             <NavLink to="/" end className={nav}>{t("app.projects")}</NavLink>
+            <NavLink to="/settings" className={nav} aria-label={t("app.settings")} data-testid="nav-settings"><span className="flex items-center gap-1.5"><Settings className="size-4" /><span className="hidden sm:inline">{t("app.settings")}</span></span></NavLink>
             <NavLink to="/help" className={nav} aria-label={t("app.help")}><span className="flex items-center gap-1.5"><CircleHelp className="size-4" /><span className="hidden sm:inline">{t("app.help")}</span></span></NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-2">

@@ -75,6 +75,7 @@ def server(tmp_path_factory):
     os.environ["TEXCLAIM_CACHE_DIR"] = str(root / "cache")
     os.environ["TEXCLAIM_CONFIG_DIR"] = str(root / "config")
     os.environ["TEXCLAIM_NO_DOTENV"] = "1"
+    os.environ["TEXCLAIM_ENV_FILE"] = str(root / "test.env")  # never touch the real keys file
     os.environ.pop("TEXCLAIM_MODEL", None)
     port = _free_port()
     app = create_app(ProjectStore(root / "data"))
@@ -282,3 +283,49 @@ def test_recheck_everything_asks_first(server, page: Page):
     expect(page.get_by_test_id("run-state")).to_have_attribute("data-state", "done", timeout=30_000)
     page.get_by_role("button", name="Estimate (dry run)").click()
     expect(page.get_by_test_id("run-state")).to_contain_text("Estimate finished", timeout=30_000)
+
+
+def test_global_settings_page(server, page: Page, tmp_path):
+    page.goto(f"{server}/settings?lang=en")
+    expect(page.get_by_role("heading", name="Settings", exact=True)).to_be_visible()
+    # default model: demo, saved and tested
+    page.get_by_role("combobox", name="Default model").click()
+    page.get_by_role("option", name="demo", exact=True).click()
+    page.get_by_test_id("save-default-model").click()
+    expect(page.get_by_test_id("health")).to_contain_text("demo")
+    page.get_by_test_id("test-default-model").click()
+    expect(page.get_by_test_id("test-result").first).to_contain_text("Works")
+    # a key is write-only: after saving it shows "Set" and never the value
+    row = page.get_by_test_id("secret-OPENAI_API_KEY")
+    row.get_by_role("textbox").fill("sk-e2e-secret-value")
+    row.get_by_role("button", name="Save").click()
+    expect(row).to_contain_text("Set")
+    expect(page.locator("body")).not_to_contain_text("sk-e2e-secret-value")
+    assert "sk-e2e-secret-value" not in page.content()
+    row.get_by_role("button", name="Remove").click()
+    expect(row).to_contain_text("Not set")
+    # agent CLI cards are listed
+    expect(page.get_by_test_id("agent-claude")).to_be_visible()
+    # Spanish
+    page.get_by_test_id("lang-es").click()
+    expect(page.get_by_role("heading", name="Configuración", exact=True)).to_be_visible()
+    page.get_by_test_id("lang-en").click()
+    import os
+
+    os.environ.pop("TEXCLAIM_MODEL", None)
+
+
+def test_project_advanced_settings(server, page: Page):
+    pid = _create_latex_project(server)
+    page.goto(f"{server}/projects/{pid}/settings?lang=en")
+    page.get_by_test_id("advanced").locator("summary").click()
+    order = page.get_by_test_id("source-order")
+    expect(order).to_contain_text("arXiv")
+    order.get_by_role("checkbox", name="Disable arxiv").click()
+    page.get_by_role("spinbutton", name="Parallel checks").fill("2")
+    page.get_by_role("spinbutton", name="Parallel checks").blur()
+    expect(page.get_by_test_id("save-settings")).to_have_text("Saved", timeout=5000)
+    import httpx
+
+    s = httpx.get(f"{server}/api/projects/{pid}/settings").json()
+    assert "arxiv" not in s["source_order"] and s["concurrency"] == 2

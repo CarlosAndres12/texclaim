@@ -21,6 +21,10 @@ app = typer.Typer(
 cache_app = typer.Typer(help="Inspect or shrink the global cache.", no_args_is_help=True)
 app.add_typer(cache_app, name="cache")
 sources_app = typer.Typer(help="Cited works' files.", no_args_is_help=True)
+config_app = typer.Typer(
+    help="Keys, default model and other global settings (the .env file).", no_args_is_help=True
+)
+app.add_typer(config_app, name="config")
 app.add_typer(sources_app, name="sources")
 
 FolderArg = Annotated[Path, typer.Argument(help="Paper folder (default: current directory).")]
@@ -763,3 +767,108 @@ def mcp(folder: FolderArg = Path(".")) -> None:
     from texclaim.graph.mcp_server import serve_stdio
 
     serve_stdio(folder)
+
+
+# ---- config ---------------------------------------------------------------------------------
+@config_app.command("show")
+def config_show(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
+    """Show which keys are set (never their values) and the global defaults."""
+    import json
+
+    from texclaim import envconfig
+    from texclaim.verifier.cli_agent import available_agents
+
+    d = envconfig.describe()
+    d["cli_agents"] = available_agents()
+    if as_json:
+        typer.echo(json.dumps(d, indent=2))
+        return
+    typer.echo(f"file: {d['file']}")
+    typer.echo("keys:")
+    for k, v in d["secrets"].items():
+        src = " (from environment)" if v["from_environment"] else ""
+        typer.echo(f"  {k:22} {'set' if v['set'] else '-'}{src}   {v['label']}")
+    typer.echo("settings:")
+    for k, v in d["settings"].items():
+        typer.echo(f"  {k:26} {v['value'] or '-'}")
+    agents = ", ".join(f"cli:{a}" for a in d["cli_agents"]) or "none"
+    typer.echo(f"agent CLIs (no API key needed): {agents}")
+
+
+@config_app.command("set")
+def config_set(
+    assignments: Annotated[list[str], typer.Argument(help="NAME=VALUE pairs")],
+) -> None:
+    """Set keys or defaults, e.g. `texclaim config set TEXCLAIM_MODEL=cli:claude`.
+
+    Prefer `texclaim config set ANTHROPIC_API_KEY` (no value): it asks without echoing."""
+    from texclaim import envconfig
+
+    updates: dict[str, str | None] = {}
+    for a in assignments:
+        name, sep, value = a.partition("=")
+        name = name.strip().upper()
+        if not sep:
+            if name not in envconfig.SECRETS:
+                raise _fail(f"use NAME=VALUE for {name}")
+            value = typer.prompt(name, hide_input=True)
+        updates[name] = value
+    try:
+        path = envconfig.write(updates)
+    except envconfig.ConfigValueError as e:
+        raise _fail(str(e)) from e
+    typer.echo(f"saved {', '.join(updates)} to {path}")
+
+
+@config_app.command("unset")
+def config_unset(names: Annotated[list[str], typer.Argument()]) -> None:
+    """Remove keys or defaults from the .env file."""
+    from texclaim import envconfig
+
+    try:
+        path = envconfig.write({n.upper(): None for n in names})
+    except envconfig.ConfigValueError as e:
+        raise _fail(str(e)) from e
+    typer.echo(f"removed {', '.join(n.upper() for n in names)} from {path}")
+
+
+@config_app.command("test")
+def config_test(
+    model: Annotated[
+        str | None, typer.Option("--model", help="Default: the configured model")
+    ] = None,
+    openalex: Annotated[bool, typer.Option("--openalex")] = False,
+    asta: Annotated[bool, typer.Option("--asta")] = False,
+) -> None:
+    """Send a tiny request to the model (or OpenAlex/Asta) and report whether it works."""
+    import asyncio
+
+    from texclaim import model_test
+    from texclaim.config import load_settings, resolve_secret
+
+    checks = []
+    if openalex:
+        checks.append(("OpenAlex", model_test.test_openalex(resolve_secret("openalex_api_key"))))
+    if asta:
+        checks.append(("Asta", model_test.test_asta(resolve_secret("asta_api_key"))))
+    if model or not checks:
+        m = model or load_settings(None).model
+        if not m:
+            raise _fail("no model configured; pass --model or set TEXCLAIM_MODEL")
+        checks.append((m, model_test.test_model(m)))
+    failed = False
+    for name, coro in checks:
+        r = asyncio.run(coro)
+        failed |= not r["ok"]
+        detail = r.get("reply") if r["ok"] else r.get("error")
+        typer.echo(f"[{'ok  ' if r['ok'] else 'FAIL'}] {name} ({r['seconds']} s): {detail}")
+    if failed:
+        raise typer.Exit(1)
+
+
+@config_app.command("path")
+def config_path() -> None:
+    """Print the .env file texclaim reads and writes."""
+    from texclaim import envconfig
+
+    typer.echo(str(envconfig.env_file()))
