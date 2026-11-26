@@ -118,13 +118,27 @@ class Locator:
             for e in entries:
                 raw = e.lookup_doi and self.cache.get_work(doi=e.lookup_doi)
                 works[e.key] = parse_work(raw) if raw else None
-        if self.asta is not None and not self.offline and "asta" in self.settings.sources.order:
+        use_asta = (
+            self.asta is not None and not self.offline and "asta" in self.settings.sources.order
+        )
+        self._asta_ready = False  # first pass: every other provider
+        results = {e.key: await self.locate(e, works.get(e.key)) for e in entries}
+        if use_asta:
+            # Asta is slow: only works still without full text, in one batched lookup
             from texclaim.sources.asta_client import asta_refs
 
-            refs = [r for e in entries for r in asta_refs(e, works.get(e.key))]
+            pending = [e for e in entries if results[e.key].status != "FULL_TEXT"]
+            refs = [r for e in pending for r in asta_refs(e, works.get(e.key))]
             if refs:
                 self._asta = await self.asta.papers(refs)
-        return {e.key: await self.locate(e, works.get(e.key)) for e in entries}
+            self._asta_ready = True
+            for e in pending:
+                res = results[e.key]
+                if await self._p_asta(e, works.get(e.key), res):
+                    continue
+                if res.status in ("NO_SOURCE",) and res.abstract:
+                    res.status, res.provider = "ABSTRACT_ONLY", "abstract"
+        return results
 
     async def locate(self, entry: BibEntry, work: OpenAlexWork | None) -> SourceResult:
         res = SourceResult(entry.key, "NO_SOURCE", work=work)
@@ -311,6 +325,8 @@ class Locator:
         if self.offline or self.asta is None or self.http is None:
             self._note(res, "asta", "skipped", "offline or no ASTA_API_KEY")
             return False
+        if not getattr(self, "_asta_ready", True):
+            return False  # runs after the other providers (see locate_all)
         from texclaim.sources.asta_client import asta_refs
 
         paper = None

@@ -53,3 +53,39 @@ async def test_one_real_llm_call(tmp_path):
     )  # fmt: skip
     rec = await verify_unit(unit, conn, LiteLLMVerifier(model), Settings(model=model))
     assert rec.verdict in {"SUPPORTED", "PARTIALLY_SUPPORTED"}
+
+
+EXPECTED_FLAGS = {
+    # example: substrings of statements that must not come out SUPPORTED
+    "latex": ["requires a large amount of memory", "more than 5 points"],
+    "markdown": ["30,1 BLEU", "a la mitad"],
+    "word": ["always converge", "best known result"],
+}
+
+
+@pytest.mark.parametrize("example", sorted(EXPECTED_FLAGS))
+def test_examples_end_to_end(tmp_path, example):
+    """Real model, real downloads: planted errors in each example are flagged."""
+    import json
+    import shutil
+    from pathlib import Path
+
+    from texclaim.check import CheckOptions, make_verifier, run_check
+    from texclaim.config import load_settings
+    from texclaim.reporting.write import write_reports
+
+    if not os.environ.get("TEXCLAIM_MODEL"):
+        pytest.skip("TEXCLAIM_MODEL not set")
+    src = Path(__file__).parents[1] / "examples" / example
+    paper = tmp_path / example
+    shutil.copytree(src, paper)
+    settings = load_settings(paper)
+    opts = CheckOptions(openalex_key=os.environ.get("OPENALEX_API_KEY"))
+    out = run_check(paper, settings, make_verifier(settings), opts)
+    write_reports(paper, settings, out, report_language=opts.report_language)
+    rep = json.loads((paper / "texclaim_report.json").read_text())
+    assert out.queue_result.errors == 0
+    for needle in EXPECTED_FLAGS[example]:
+        units = [u for u in rep["units"] if needle in u["claim_text"]]
+        assert units, needle
+        assert all(u["verdict"] != "SUPPORTED" for u in units), (needle, units[0]["verdict"])
