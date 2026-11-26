@@ -163,7 +163,9 @@ async def verify_unit(
             feedback = call.error or "the output was not valid JSON for the schema"
             continue
         out = call.output
-        final = finalize(out, ev)
+        final = finalize(
+            out, ev, unit.text_norm if getattr(unit, "origin", "cited") == "internal" else None
+        )
         if not final.problems:
             break
         feedback = "; ".join(final.problems)

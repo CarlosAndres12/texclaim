@@ -12,6 +12,7 @@ from texclaim.config import Settings
 from texclaim.db.state_store import transaction
 from texclaim.parser import ParseResult
 from texclaim.parser.bib_parser import BibDatabase
+from texclaim.parser.claim_extractor import SELF_KEY
 from texclaim.sources.arxiv_client import ArxivClient
 from texclaim.sources.budget import RunBudget
 from texclaim.sources.global_cache import GlobalCache
@@ -57,6 +58,8 @@ async def resolve_sources(
     results: dict[str, SourceResult] = {}
     entries = []
     for key in cited_keys(parsed):
+        if key == SELF_KEY:
+            continue
         if key in bibdb.entries:
             entries.append(bibdb.entries[key])
         elif key in bibdb.malformed:
@@ -90,6 +93,8 @@ def insert_catalog(
     now = datetime.now(UTC).isoformat()
     conn.execute("DELETE FROM references_catalog")
     for key in cited_keys(parsed):
+        if key not in results:
+            continue
         r = results[key]
         e = bibdb.entries.get(key)
         w = r.work

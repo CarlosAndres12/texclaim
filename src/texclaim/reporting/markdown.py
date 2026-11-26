@@ -31,6 +31,8 @@ def _finding(f: dict) -> str:
             f"**Note:** {f['detail']}\n"
         )
     title = f["verdict"] + (" · needs review" if f["needs_review"] else "")
+    if f.get("claim_origin") == "internal":
+        title += " · " + (f["role"] or "uncited statement")
     out = [f"### {f['id']} · {title} · {f['file']}:{f['line']}", f"> {f['claim_latex']}", ""]
     for label, k in (
         ("What is wrong", "what_is_wrong"),
@@ -41,7 +43,8 @@ def _finding(f: dict) -> str:
     if f["analysis"] and not (f["what_is_wrong"] or f["what_source_says"]):
         out.append(f"**Analysis:** {f['analysis']}")
     for q in f["quotes"]:
-        out.append(_quote(q, f["bib_key"], f["source_version"]))
+        key = "manuscript" if f["bib_key"] == "@self" else f["bib_key"]
+        out.append(_quote(q, key, None if key == "manuscript" else f["source_version"]))
     if f["suggested_fix"]:
         out.append(f"**Suggested fix:** {f['suggested_fix']}")
     scope = SCOPE.get(f["evidence_scope"], f["evidence_scope"])
@@ -66,14 +69,26 @@ def render_markdown(rep: dict) -> str:
         f"{cov['none']} none",
     ]
     lines += [f"- Note: {n}" for n in run["notes"]]
-    lines += ["", "## Findings", ""]
     shown = [f for f in rep["findings"] if not f["suppressed"]]
-    lines += [_finding(f) for f in shown] or ["No findings.\n"]
+    cited = [f for f in shown if f.get("claim_origin") != "internal"]
+    concl = [f for f in shown if f.get("claim_origin") == "internal" and f.get("role")]
+    other = [f for f in shown if f.get("claim_origin") == "internal" and not f.get("role")]
+    lines += ["", "## Findings", ""]
+    lines += [_finding(f) for f in cited] or ["No findings.\n"]
+    if concl or other or any(u.get("claim_origin") == "internal" for u in rep["units"]):
+        lines += ["## Abstract and conclusions consistency", ""]
+        lines += [_finding(f) for f in concl] or ["No findings.\n"]
+        lines += ["## Internal consistency (uncited statements)", ""]
+        lines += [_finding(f) for f in other] or ["No findings.\n"]
 
     lines += ["## Uncheckable units", ""]
     groups: dict[str, list[dict]] = defaultdict(list)
     for u in rep["units"]:
-        if u["verdict"] == "UNCHECKABLE" and not u["suppressed"]:
+        if (
+            u["verdict"] == "UNCHECKABLE"
+            and not u["suppressed"]
+            and u.get("claim_origin") != "internal"
+        ):
             groups[u["reason_code"]].append(u)
     for reason in sorted(groups):
         fix = FIXES.get(reason, "")

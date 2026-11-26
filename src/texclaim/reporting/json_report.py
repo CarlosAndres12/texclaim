@@ -69,7 +69,8 @@ def build_report(
     rows = conn.execute(
         "SELECT c.unit_key, c.bib_key, c.cite_command, c.prenote, c.postnote, c.group_keys,"
         " cl.claim_pk, cl.claim_hash, cl.file_path, cl.line_start, cl.line_end, cl.char_start,"
-        " cl.char_end, cl.section_path, cl.unit_kind, cl.raw_latex, cl.text_norm,"
+        " cl.char_end, cl.section_path, cl.unit_kind, cl.raw_latex, cl.text_norm, cl.origin AS"
+        " claim_origin, cl.role,"
         " res.result_id, res.run_id AS result_run, res.origin, res.verdict, res.reason_code,"
         " res.citation_function, res.evidence_scope, res.claim_scope, res.analysis,"
         " res.what_is_wrong, res.what_source_says, res.suggested_fix, res.confidence,"
@@ -87,7 +88,8 @@ def build_report(
     for r in rows:
         if r["verdict"] is None:
             continue
-        by_claim.setdefault(r["claim_pk"], {})[r["bib_key"]] = r["verdict"]
+        if r["claim_origin"] != "internal":  # claim-level flags apply to cited claims only
+            by_claim.setdefault(r["claim_pk"], {})[r["bib_key"]] = r["verdict"]
         claim_loc.setdefault(
             r["claim_pk"], {"file": r["file_path"], "line": r["line_start"], "text": r["raw_latex"]}
         )
@@ -114,6 +116,7 @@ def build_report(
             "section": r["section_path"], "unit_kind": r["unit_kind"], "bib_key": r["bib_key"],
             "cite_command": r["cite_command"], "prenote": r["prenote"], "postnote": r["postnote"],
             "claim_latex": r["raw_latex"], "claim_text": r["text_norm"],
+            "claim_origin": r["claim_origin"], "role": r["role"],
             "verdict": r["verdict"], "reason_code": r["reason_code"], "origin": r["origin"],
             "evidence_scope": r["evidence_scope"], "citation_function": r["citation_function"],
             "claim_scope": r["claim_scope"], "analysis": r["analysis"],

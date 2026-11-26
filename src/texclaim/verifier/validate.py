@@ -83,14 +83,31 @@ class Finalized:
     quote_problem: bool = False
 
 
-def finalize(out: VerifierOutput, ev: Evidence) -> Finalized:
-    """Apply the §11.5 rules to one model answer."""
+def restates(quote: str, statement: str) -> bool:
+    """True when a quote is (part of) the statement itself rather than independent support."""
+    from rapidfuzz import fuzz
+
+    q = " ".join(quote.lower().split())
+    st = " ".join(re.sub(r"\[@[^\]]*\]", "", statement).lower().split())
+    if not q or not st:
+        return False
+    short, long_ = (q, st) if len(q) <= len(st) else (st, q)
+    return len(short) >= 20 and fuzz.partial_ratio(short, long_) >= 92
+
+
+def finalize(out: VerifierOutput, ev: Evidence, statement: str | None = None) -> Finalized:
+    """Apply the §11.5 rules to one model answer. `statement`: reject self-quotes (internal)."""
     verified: list[dict] = []
     problems: list[str] = []
     for i, q in enumerate(out.quotes[:3], 1):
         m = match_quote(q.text, q.block_id, ev.blocks)
         if m is None:
             problems.append(f"quote {i} is not verbatim in [{q.block_id}]")
+            continue
+        if statement and restates(m.block.text[m.start : m.end], statement):
+            problems.append(
+                f"quote {i} repeats the statement itself; support must come from elsewhere"
+            )
             continue
         loc = ev.locate(m.block, m.start, m.end)
         verified.append({**loc, "text": m.block.text[m.start : m.end], "score": round(m.score, 1)})

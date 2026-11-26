@@ -45,7 +45,9 @@ def prepare(
     stage = on_stage or (lambda _name: None)
     stage("parse")
     fmt = formats.prepare(folder, settings.main)
-    parsed = parse_manuscript(folder, fmt.main, settings.extra_cite_commands)
+    parsed = parse_manuscript(
+        folder, fmt.main, settings.extra_cite_commands, internal=settings.internal.enabled
+    )
     formats.remap(fmt, parsed)
     bibdb = parse_bib_files(folder, parsed.root, parsed.bib_resources)
     cache = GlobalCache(paths.global_cache_dir(cache_dir))
@@ -62,7 +64,19 @@ def prepare(
         conn = open_db(folder)
         try:
             index_sources(conn, results, cache, extractor)
+            if settings.internal.enabled:
+                from texclaim.internal import SELF_KEY, build_self_doc, self_result
+                from texclaim.text_utils import detect_language
+
+                doc = build_self_doc(parsed)
+                if doc is not None:
+                    results[SELF_KEY] = self_result(
+                        conn, doc, detect_language(doc.full_text[:5000])
+                    )
+                else:  # nothing to check against: drop the internal claims
+                    parsed.claims = [c for c in parsed.claims if c.origin != "internal"]
             write_snapshot(conn, parsed, bibdb, results)
+            results.pop("@self", None)  # the manuscript is not a cited work
             gc_sources(conn)
         finally:
             conn.close()

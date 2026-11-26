@@ -10,6 +10,7 @@ from rapidfuzz import fuzz
 
 from texclaim.db.state_store import transaction
 from texclaim.parser.bib_parser import arxiv_doi
+from texclaim.parser.claim_extractor import SELF_KEY
 from texclaim.pipeline import Prepared
 from texclaim.sources.identity import norm
 
@@ -52,6 +53,8 @@ def compute_integrity(
         issues.append(Issue(d.code, d.severity, d.detail, None, d.file, d.line))
 
     for key, (f, ln) in first_use.items():
+        if key == SELF_KEY:
+            continue
         r = results.get(key)
         e = bibdb.entries.get(key)
         if r is None:

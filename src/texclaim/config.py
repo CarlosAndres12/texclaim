@@ -52,6 +52,18 @@ class BudgetSettings(BaseModel):
     concurrency: int = 4
 
 
+class InternalSettings(BaseModel):
+    """Checks of uncited claims against the manuscript itself (abstract, body, conclusions)."""
+
+    enabled: bool = True
+    # Empty = whole document. Otherwise section titles (case-insensitive substring of the
+    # section path) or the roles "abstract" / "conclusion".
+    sections: list[str] = Field(default_factory=list)
+    # auto: the model screens candidate sentences when it can, else heuristics
+    screening: Literal["auto", "llm", "heuristic", "none"] = "auto"
+    max_claims: int = 150
+
+
 class Settings(BaseModel):
     main: str | None = None
     model: str | None = None
@@ -66,6 +78,7 @@ class Settings(BaseModel):
     evidence: EvidenceSettings = Field(default_factory=EvidenceSettings)
     sources: SourceSettings = Field(default_factory=SourceSettings)
     budget: BudgetSettings = Field(default_factory=BudgetSettings)
+    internal: InternalSettings = Field(default_factory=InternalSettings)
 
     def public_dict(self) -> dict[str, Any]:
         """Effective settings, safe to store (contains no secrets by construction)."""

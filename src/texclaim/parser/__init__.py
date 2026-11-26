@@ -29,6 +29,7 @@ def parse_manuscript(
     paper: Path,
     main: str | Path | None = None,
     extra_cite_commands: list[str] | None = None,
+    internal: bool = False,
 ) -> ParseResult:
     paper = paper.resolve()
     root = find_root(paper, main)
@@ -53,7 +54,7 @@ def parse_manuscript(
     claims: list[ClaimRec] = []
     nocites: list[tuple[str, str, int]] = []
     for f in graph.files:
-        res = extract_claims(f, extra | wrappers)
+        res = extract_claims(f, extra | wrappers, internal)
         claims.extend(res.claims)
         diags.extend(res.diagnostics)
         nocites.extend(res.nocite_keys)

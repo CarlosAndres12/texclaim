@@ -126,6 +126,23 @@ class LiteLLMVerifier:
             call.error = f"invalid JSON for the schema: {str(e)[:200]}"
         return call
 
+    async def screen(self, texts: list[str]) -> tuple[set[int] | None, float | None]:
+        """Check-worthiness screening for internal claims (one batch)."""
+        from texclaim.internal import parse_screen, screen_messages
+
+        try:
+            kw = self._kwargs()
+            kw.update(messages=screen_messages(texts), max_tokens=400)
+            resp = await self._litellm.acompletion(**kw)
+        except Exception:  # noqa: BLE001 - screening falls back to heuristics
+            return None, None
+        raw = resp.choices[0].message.content or ""
+        try:
+            cost = float(self._litellm.completion_cost(completion_response=resp))
+        except Exception:  # noqa: BLE001
+            cost = None
+        return parse_screen(raw, len(texts)), cost
+
     async def translate(self, text: str, language: str) -> str:
         from texclaim.verifier.prompts import TRANSLATE_SYSTEM
 

@@ -207,6 +207,18 @@ def _run_check_locked(folder, settings, verifier, opts, extractor, stop, handle_
         model = getattr(verifier, "model", None) or settings.model
         ctx = verifier.context_window() if hasattr(verifier, "context_window") else None
         units = load_units(conn, settings, ctx)
+        internal_stats = None
+        if settings.internal.enabled:
+            from texclaim.internal import select_units
+
+            units, internal_stats = select_units(
+                conn, units, settings.internal, None if opts.dry_run else verifier
+            )
+            if internal_stats["candidates"]:
+                notices.append(
+                    f"internal checks: {internal_stats['kept']} of "
+                    f"{internal_stats['candidates']} uncited statements selected for checking"
+                )
         if ctx is not None and ctx - 4000 < settings.evidence.full_text_max_tokens:
             notices.append(
                 f"model context window ({ctx} tokens) is smaller than full_text_max_tokens "

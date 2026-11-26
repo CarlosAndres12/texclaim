@@ -192,9 +192,15 @@ def split_sentences(seg: str, starters: frozenset[int] = frozenset()) -> list[tu
     return out
 
 
+SELF_KEY = "@self"
+_ABSTRACT_ENV = re.compile(r"\\begin\{abstract\}(.*?)\\end\{abstract\}", re.S)
+_MIN_INTERNAL_WORDS = 6
+
+
 class _Extractor:
-    def __init__(self, sf: SourceFile, extra: set[str]) -> None:
+    def __init__(self, sf: SourceFile, extra: set[str], internal: bool = False) -> None:
         self.sf = sf
+        self.internal = internal
         self.text = sf.text
         self.mask = mask_comments(sf.text)
         self.lines = LineIndex(sf.text)
@@ -208,6 +214,7 @@ class _Extractor:
         for key, off in scan.nocites:
             self.res.nocite_keys.append((key, sf.path, self.lines.line(off)))
         self.defs = [(d.start, d.end) for d in find_definitions(self.mask)]
+        self.abstract = [(m.start(1), m.end(1)) for m in _ABSTRACT_ENV.finditer(self.mask)]
 
     # ---- text normalisation -------------------------------------------------
     def normalize(
@@ -257,6 +264,8 @@ class _Extractor:
         for idx, (a, b) in enumerate(ranges):
             own = [c for c in cites if a <= c.start < b]
             if not own:
+                if self.internal and kind != "table_row":
+                    self.emit_internal(idx, a, b, kind, norms)
                 continue
             ctx = " ".join(n for i, n in enumerate(norms) if abs(i - idx) == 1 and n)
             text_norm = norms[idx]
@@ -275,6 +284,7 @@ class _Extractor:
                 context_norm=collapse(ctx),
                 prev_norm=collapse(prev),
                 para_norm=collapse(" ".join(n for n in norms if n)),
+                role=self.role(a),
             )
             prev_end = a
             for ci, c in enumerate(own):
@@ -302,6 +312,36 @@ class _Extractor:
                     )
             self.res.claims.append(claim)
 
+    def emit_internal(self, idx: int, a: int, b: int, kind: str, norms: list[str]) -> None:
+        text_norm = norms[idx]
+        if len(re.findall(r"\w+", text_norm)) < _MIN_INTERNAL_WORDS or text_norm.endswith("?"):
+            return
+        ctx = " ".join(n for i, n in enumerate(norms) if abs(i - idx) == 1 and n)
+        claim = ClaimRec(
+            claim_hash=hashlib.sha256(("internal\0" + text_norm).encode()).hexdigest(),
+            file_path=self.sf.path,
+            line_start=self.lines.line(a),
+            line_end=self.lines.line(max(a, b - 1)),
+            char_start=a,
+            char_end=b,
+            section_path=section_path(self.sf, a),
+            unit_kind=kind,
+            raw_latex=self.text[a:b],
+            text_norm=text_norm,
+            context_norm=collapse(ctx),
+            prev_norm=collapse(norms[idx - 1] if idx > 0 else ""),
+            para_norm=collapse(" ".join(n for n in norms if n)),
+            origin="internal",
+            role=self.role(a),
+        )
+        claim.citations.append(CitationRec(SELF_KEY, "", None, None, [SELF_KEY], text_norm, a, a))
+        self.res.claims.append(claim)
+
+    def role(self, offset: int) -> str:
+        if any(s <= offset < e for s, e in self.abstract):
+            return "abstract"
+        return section_role(section_path(self.sf, offset))
+
     def process(self, a: int, b: int, kind: str, single: bool = False, table: bool = False) -> None:
         mask = self.mask
         specials = find_specials(mask, a, b)
@@ -323,7 +363,7 @@ class _Extractor:
                     self.process(rs, re_, "table_row", single=True, table=True)
         if bib:
             holes += [(s.start, s.end) for s in bib]
-        if not own:
+        if not own and not self.internal:
             return
         work = fill(mask[a:b], [(s - a, e - a) for s, e in holes if s < b and e > a])
         if single:
@@ -343,7 +383,7 @@ class _Extractor:
         cuts = sorted(set(cuts)) + [len(work)]
         for ps, pe in zip(cuts, cuts[1:], strict=False):
             para_cites = [c for c in own if a + ps <= c.start < a + pe]
-            if not para_cites:
+            if not para_cites and not self.internal:
                 continue
             piece = work[ps:pe]
             starts_item = ps in item_starts
@@ -358,8 +398,27 @@ class _Extractor:
             self.emit(ranges, unit_kind, para_cites, holes)
 
 
-def extract_claims(sf: SourceFile, extra: set[str] | frozenset[str] = frozenset()) -> ExtractResult:
-    ex = _Extractor(sf, set(extra))
+_ROLE_PATTERNS = (
+    ("abstract", re.compile(r"^(abstract|resumen|summary)\b", re.I)),
+    ("conclusion", re.compile(
+        r"(conclusi[oó]n|conclusiones|concluding|closing remarks|discussion and conclusion"
+        r"|summary and (outlook|future work)|consideraciones finales)", re.I)),
+)  # fmt: skip
+
+
+def section_role(path: str) -> str:
+    """'abstract' or 'conclusion' from a section path like 'Results > Conclusions'."""
+    for part in (p.strip() for p in (path or "").split(">")):
+        for role, rx in _ROLE_PATTERNS:
+            if rx.search(part):
+                return role
+    return ""
+
+
+def extract_claims(
+    sf: SourceFile, extra: set[str] | frozenset[str] = frozenset(), internal: bool = False
+) -> ExtractResult:
+    ex = _Extractor(sf, set(extra), internal)
     start, end = 0, len(ex.mask)
     d = _DOC.search(ex.mask)
     if d:
